@@ -14,7 +14,7 @@ const emoticonRegex = new RegExp(
 
 // Function to replace emoticons with <img> tags
 export const replaceEmoticons = (message) => {
-  return message.replace(emoticonRegex, (match) => {
+  return String(message ?? '').replace(emoticonRegex, (match) => {
     const emoticonSrc = emoticons[match]; // Convert match to lowercase
     if (emoticonSrc) {
       return `<span><img src="${emoticonSrc}" alt="${match}"/></span>`; // Return HTML string for the emoticon

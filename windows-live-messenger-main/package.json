@@ -8,9 +8,12 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
+    "server": "npm --prefix server start",
+    "server:dev": "npm --prefix server run dev",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.22.0",
     "@ruffle-rs/ruffle": "^0.1.0-nightly.2024.12.15",
     "7.css": "^0.16.0",
     "axios": "^1.7.9",
@@ -20,6 +23,7 @@
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.7",
     "express": "^4.19.2",
+    "jose": "^6.2.12",
     "openai": "^4.47.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.msn-font {
+  font-family: "Segoe UI", "Segoe UI Variable", "Noto Sans", "Helvetica Neue", Arial, sans-serif !important;
+}
+
 .aerobutton {
   background-color: transparent;
   border: 2px solid transparent;
@@ -12,6 +16,46 @@
 }
 .aerobutton:active {
   border-image: url('/assets/general/aerobutton_border_down.png') 2 round;
+}
+
+.add-friend-button {
+  border: 2px solid transparent;
+  background: transparent;
+}
+
+.add-friend-button:hover {
+  border-image: url('/assets/general/aerobutton_border.png') 2 round;
+  background-size: 100% 100%;
+}
+
+.add-friend-button:focus {
+  border-color: transparent;
+  border-image: none;
+  background: transparent;
+  outline: none;
+}
+
+.add-friend-button:active {
+  border-image: url('/assets/general/aerobutton_border_down.png') 2 round;
+  background-size: 100% 100%;
+}
+
+.microsoft-logo {
+  display: grid;
+  grid-template-columns: repeat(2, 7px);
+  gap: 1px;
+  width: 15px;
+  height: 15px;
+}
+
+.microsoft-logo span:nth-child(1) { background: #f25022; }
+.microsoft-logo span:nth-child(2) { background: #7fba00; }
+.microsoft-logo span:nth-child(3) { background: #00a4ef; }
+.microsoft-logo span:nth-child(4) { background: #ffb900; }
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .divider {
@@ -100,6 +144,31 @@
   -ms-overflow-style: none; /* Hide scrollbar for Internet Explorer, Edge */
   scrollbar-width: none; /* Hide scrollbar for Firefox */
 }
+
+.retro-notification {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1000;
+  width: 360px;
+  padding: 10px 12px 12px;
+  color: #12365f;
+  cursor: pointer;
+  border: 1px solid #6b9ec4;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #e8f6ff 0%, #c6e6f8 58%, #b6d9ed 100%);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.8) inset, 0 3px 12px rgba(0,0,0,.45);
+  font-family: Tahoma, sans-serif;
+}
+.retro-notification-header { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; font-size: 13px; font-weight: 600; }
+.retro-notification-header img { width: 18px; height: 18px; }
+.retro-notification-body { display: flex; align-items: center; gap: 14px; padding: 4px 8px 8px; }
+.retro-notification-avatar { width: 82px; height: 82px; padding: 5px; border: 2px solid #71a9c8; border-radius: 7px; background: linear-gradient(145deg, #eaf8ff, #a8d5e8); box-shadow: 0 2px 4px rgba(0,0,0,.28); }
+.retro-notification-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+.retro-notification-body strong { display: block; margin-bottom: 4px; color: #214f78; font-size: 22px; font-weight: 500; }
+.retro-notification-body p { max-width: 215px; margin: 0; overflow: hidden; color: #315d7d; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.retro-notification-action { float: right; border: 0; color: #17619b; background: transparent; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.retro-notification-close { position: absolute; top: 5px; right: 8px; border: 0; color: #466b87; background: transparent; font-size: 24px; line-height: 20px; cursor: pointer; }
 
 body {
   overflow: hidden;

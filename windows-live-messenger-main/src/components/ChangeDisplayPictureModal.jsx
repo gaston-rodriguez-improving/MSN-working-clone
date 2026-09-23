@@ -4,6 +4,7 @@ import AvatarLarge from './AvatarLarge';
 import usertiles from '../imports/usertiles';
 import defaultAvatar from '/assets/usertiles/default.png';
 import WLMIcon from '/assets/general/wlm-icon.png';
+import { updateAvatar } from '../data/api';
 
 const ChangeDisplayPictureModal = ({ setShowChangePictureModal }) => {
   const [userPicture, setUserPicture] = useState(localStorage.getItem('picture'));
@@ -13,12 +14,14 @@ const ChangeDisplayPictureModal = ({ setShowChangePictureModal }) => {
     localStorage.setItem('picture', imageSrc);
     localStorage.setItem('discord_picture', imageSrc);
     setUserPicture(imageSrc);
-    setUserDiscordPicture(imageSrc);
+    updateAvatar(imageSrc).catch(() => {});
   };
 
   const removeUserPicture = () => {
     localStorage.setItem('picture', defaultAvatar);
     localStorage.setItem('discord_picture', defaultAvatar);
+    setUserPicture(defaultAvatar);
+    updateAvatar('default').catch(() => {});
   };
 
   const handleButtonClick = () => {
@@ -60,7 +63,7 @@ const ChangeDisplayPictureModal = ({ setShowChangePictureModal }) => {
       <div className="justify-center items-center flex overflow-x-hidden overflow-y-auto fixed inset-0 z-50 outline-none focus:outline-none">
         <div className="relative w-auto my-6 mx-auto max-w-3xl">
           {/* Content */}
-          <div className="rounded-lg shadow-lg relative flex flex-col w-full bg-white outline-none focus:outline-none bg-gradient-to-t from-[#c3d4ec83] via-white to-[#c3d4ec83]">
+          <div className="msn-font rounded-lg shadow-lg relative flex flex-col w-full bg-white outline-none focus:outline-none bg-gradient-to-t from-[#c3d4ec83] via-white to-[#c3d4ec83]">
             {/* Header */}
             <div className="flex items-start justify-between rounded-t-lg bg-[#f3f3f3]">
               <div className="flex items-center ml-1">

@@ -10,7 +10,7 @@ import { replaceEmoticons } from '../helpers/replaceEmoticons';
 
 import { useNavigate } from 'react-router-dom';
 
-const ContactCategory = ({ title, contacts, count }) => {
+const ContactCategory = ({ title, contacts, count, onOpenChat }) => {
   const [isOpen, setIsOpen] = useState(true);
 
   const toggleAccordion = () => {
@@ -25,12 +25,12 @@ const ContactCategory = ({ title, contacts, count }) => {
         <p className="text-[#1D2F7F] mr-1">{title}</p>
         <p className="opacity-40">({count})</p>
       </div>
-      {isOpen && <ContactList contacts={contacts} />}
+      {isOpen && <ContactList contacts={contacts} onOpenChat={onOpenChat} />}
     </div>
   );
 };
 
-const Contacts = ({ contact }) => {
+const Contacts = ({ contact, onOpenChat }) => {
   const navigate = useNavigate();
 
   const whichStatus = (contactStatus) => {
@@ -49,8 +49,17 @@ const Contacts = ({ contact }) => {
   };
 
   const openChat = (contact) => {
+    if (!contact?.id) return;
+
+    if (onOpenChat) {
+      onOpenChat(contact);
+      return;
+    }
+
     navigate(`/chat/${contact.id}`);
   };
+
+  const statusMessage = contact.message || contact.bio || contact.statusMessage || contact.status_message || '';
 
   return (
     <div className="flex gap-1 px-6 items-center hovercontact border border-transparent" onClick={() => openChat(contact)}>
@@ -58,20 +67,21 @@ const Contacts = ({ contact }) => {
         <img src={whichStatus(contact.status)} alt="contact-status" />
       </div>
       <span className="flex gap-1" dangerouslySetInnerHTML={{ __html: replaceEmoticons(contact.name) }}></span>
-      <span>{!contact.message ? null : '-'}</span>
-      <span className="flex gap-1 text-gray-400" dangerouslySetInnerHTML={{ __html: replaceEmoticons(contact.message) }}></span>
+      <span>{!statusMessage ? null : '-'}</span>
+      <span className="flex gap-1 text-gray-400" dangerouslySetInnerHTML={{ __html: replaceEmoticons(statusMessage) }}></span>
     </div>
   );
 };
 
-const ContactList = ({ contacts }) => {
+const ContactList = ({ contacts, onOpenChat }) => {
   return (
     <div className="accordion">
       {contacts
+        .filter(Boolean)
         .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => String(a.name || a.username || a.email || '').localeCompare(String(b.name || b.username || b.email || '')))
         .map((contact) => (
-          <Contacts key={contact.id} contact={contact} />
+          <Contacts key={contact.id} contact={contact} onOpenChat={onOpenChat} />
         ))}
     </div>
   );

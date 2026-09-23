@@ -5,25 +5,28 @@ import arrow from '/assets/general/arrow.png';
 import Dropdown from './Dropdown';
 import statusFrames from '../imports/statusFrames';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
+import { updateBio } from '../data/api';
 
 const UserInformation = () => {
   const [user, setUser] = useState({
-    message: localStorage.getItem('message'),
+    message: localStorage.getItem('message') || '',
     status: localStorage.getItem('status') || 'Available',
-    name: localStorage.getItem('name') || localStorage.getItem('discord_username'),
+    name: localStorage.getItem('name') || localStorage.getItem('discord_username') || '',
   });
 
+  const account = JSON.parse(localStorage.getItem('messenger_user') || 'null');
+  const displayName = user.name || account?.username || account?.email || 'User';
   const [isEditing, setIsEditing] = useState(false);
-  const [message, setMessage] = useState(user.message);
+  const [message, setMessage] = useState(user.message || '');
   const inputRef = useRef(null);
 
   const options = [
-    { value: 'Available', label: 'Available', image: statusFrames.onlineDot },
-    { value: 'Busy', label: 'Busy', image: statusFrames.busyDot },
-    { value: 'Away', label: 'Away', image: statusFrames.awayDot },
+    { value: 'Available', label: 'online', image: statusFrames.onlineDot },
+    { value: 'Busy', label: 'busy', image: statusFrames.busyDot },
+    { value: 'Away', label: 'away', image: statusFrames.awayDot },
     {
       value: 'Offline',
-      label: 'Appear offline',
+      label: 'offline',
       image: statusFrames.offlineDot,
     },
     { separator: true },
@@ -43,10 +46,11 @@ const UserInformation = () => {
     adjustInputWidth();
   };
 
-  const handleInputBlur = () => {
+  const handleInputBlur = async () => {
     setUser({ ...user, message });
     localStorage.setItem('message', message);
     setIsEditing(false);
+    await updateBio(message).catch(() => {});
   };
 
   const handleInputKeyPress = (e) => {
@@ -57,7 +61,7 @@ const UserInformation = () => {
 
   const adjustInputWidth = () => {
     if (inputRef.current) {
-      inputRef.current.style.width = `${inputRef.current.value.length}ch`;
+      inputRef.current.style.width = `${Math.max(inputRef.current.value.length + 2, 12)}ch`;
     }
   };
 
@@ -72,13 +76,13 @@ const UserInformation = () => {
     localStorage.setItem('status', status);
   };
   return (
-    <div className="flex">
+    <div className="flex items-start">
       <AvatarSmall />
-      <div className="ml-[-12px]">
-        <div className="flex items-center">
-          <Dropdown options={options} value={user.status} onChange={handleStatusChange} />
+      <div className="ml-1 pt-1">
+        <div className="flex items-center gap-1">
+          <Dropdown options={options} value={user.status} onChange={handleStatusChange} showUserName />
         </div>
-        <div className="flex aerobutton pl-1 ml-1 items-center white-light" onClick={handleMessageClick}>
+        <div className="flex aerobutton pl-1 items-center white-light" onClick={handleMessageClick}>
           {isEditing ? (
             <input
               ref={inputRef}
@@ -89,7 +93,7 @@ const UserInformation = () => {
               onKeyPress={handleInputKeyPress}
               autoFocus
               className="border border-gray-300 rounded outline-none"
-              style={{ width: `${message.length}ch` }}
+              style={{ width: `${Math.max(message.length + 2, 12)}ch` }}
             />
           ) : (
             <p className="cursor-pointer flex gap-1">

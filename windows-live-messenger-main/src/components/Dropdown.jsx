@@ -6,19 +6,25 @@ import OptionsModal from './OptionsModal';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import ChangeSceneModal from '../components/ChangeSceneModal';
 
-const Dropdown = ({ options, onChange, showStatusDots = false }) => {
+const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName = true, value }) => {
   const [user, setUser] = useState({
     loggedin: localStorage.getItem('loggedin') || '',
     email: localStorage.getItem('email') || '',
     message: localStorage.getItem('message') || '',
-    status: localStorage.getItem('status') || 'Available',
-    name: localStorage.getItem('name') || localStorage.getItem('discord_username') || '',
+    status: value || localStorage.getItem('status') || 'Available',
+    name:
+      localStorage.getItem('name') ||
+      localStorage.getItem('discord_username') ||
+      JSON.parse(localStorage.getItem('messenger_user') || 'null')?.username ||
+      '',
   });
 
   const [changePictureShowModal, setShowChangePictureModal] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showChangeSceneModal, setShowChangeSceneModal] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(options.find((option) => option.value === user.status) || options[0]);
+  const [selectedOption, setSelectedOption] = useState(
+    options.find((option) => option.value === user.status) || options.find((option) => !option.separator) || { value: '', label: '' },
+  );
   const [isOpen, setIsOpen] = useState(false);
 
   const dropdownRef = useRef(null);
@@ -72,29 +78,23 @@ const Dropdown = ({ options, onChange, showStatusDots = false }) => {
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
-      <div onClick={handleToggleDropdown} className="flex aerobutton cursor-pointer items-center px-1 ml-1 white-light">
-        <div className="flex items-center">
+      <div onClick={handleToggleDropdown} className="aerobutton flex cursor-pointer items-baseline gap-2 mt-2.5 white-light">
+        <div className="flex items-center gap-2">
           {showStatusDots && selectedOption.image && (
             <img src={selectedOption.image} alt={selectedOption.label} className="inline-block mt-0.5 mr-1 w-2" />
           )}
 
-          {user.loggedin &&
-            (user.name !== '' ? (
-              <span
-                className="flex gap-1 text-lg items-baseline"
-                dangerouslySetInnerHTML={{ __html: replaceEmoticons(user.name) }}
-              />
-            ) : (
-              <span
-                className="flex gap-1 text-lg items-baseline"
-                dangerouslySetInnerHTML={{ __html: replaceEmoticons(user.email) }}
-              />
-            ))}
+          {showUserName && (user.name || user.email) && (
+            <p
+              className="text-[20px] my-[-5px] glow"
+              dangerouslySetInnerHTML={{ __html: replaceEmoticons(user.name || user.email) }}
+            />
+          )}
 
-          <p className="ml-1 capitalize">({selectedOption.label})</p>
+          <p className="glow">({selectedOption.label})</p>
         </div>
         {/* )} */}
-        <img src={arrow} className="inline-block mb-0.5 ml-2" alt="Toggle Dropdown" />
+        <img src={arrow} className="inline-block w-[7px]" alt="Toggle Dropdown" />
       </div>
 
       {isOpen && (

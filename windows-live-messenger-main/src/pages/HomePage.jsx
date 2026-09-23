@@ -1,26 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext } from 'react';
 import Background from '../components/Background';
 import SearchBar from '../components/SearchBar';
 import ContactCategory from '../components/ContactList';
 import arrow from '/assets/general/arrow.png';
 import ad from '/assets/ad.png';
-import mail from '/assets/general/mail.png';
 import addcontact from '/assets/contacts/add_contact.png';
 import showmenu from '/assets/contacts/1489.png';
 import contactlistlayout from '/assets/contacts/change_contact_list_layout.png';
-import contactsData from '../data/contacts.json';
+import { ChatContext } from '../contexts/ChatContext';
 import divider from '/assets/general/divider.png';
 import WhatsNew from '../components/WhatsNew';
 import UserInformations from '../components/UserInformations';
-import bg from '/assets/background/background.jpg';
 import hotmail from '/assets/general/hotmail.png';
+import { ChatWindow } from './ChatPage';
+import AddFriendModal from '../components/AddFriendModal';
+import FriendInvitationModal from '../components/FriendInvitationModal';
 
 const HomePage = () => {
-  const [contacts, setContacts] = useState([]);
+  const { contacts, friendRequests, sendFriendInvitation, respondToFriendInvitation } = useContext(ChatContext);
+  const [openChatIds, setOpenChatIds] = React.useState([]);
+  const [showAddFriend, setShowAddFriend] = React.useState(false);
+  const [activeInvitation, setActiveInvitation] = React.useState(null);
 
-  useEffect(() => {
-    setContacts(contactsData); // Utilisation directe des données importées
-  }, []);
+  React.useEffect(() => {
+    const incomingInvitation = friendRequests.find((request) => request.direction !== 'outgoing');
+    if (!activeInvitation && incomingInvitation) setActiveInvitation(incomingInvitation);
+  }, [friendRequests, activeInvitation]);
 
   // Filtrage des contacts par statut
   const favoritesContacts = contacts.filter((contact) => contact.isFavorite === 1);
@@ -30,8 +35,17 @@ const HomePage = () => {
 
   const background = localStorage.getItem('scene');
 
+  const openChat = (contact) => {
+    setOpenChatIds((currentIds) => (currentIds.includes(contact.id) ? currentIds : [...currentIds, contact.id]));
+  };
+
+  const closeChat = (contactId) => {
+    setOpenChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
+  };
+
   return (
-    <Background>
+    <>
+      <Background>
       <div
         className={`bg-no-repeat ${
           background === '/assets/scenes/default_background.jpg' ? 'h-screen' : 'h-[97px]'
@@ -42,7 +56,7 @@ const HomePage = () => {
           backgroundPosition: background !== '/assets/scenes/default_background.jpg' ? 'center' : '',
         }}
       >
-        <div className="flex flex-col w-full font-sans text-base h-screen win7">
+        <div className="msn-font flex flex-col w-full font-sans text-base h-screen win7">
           {/* Personnal informations row */}
           <div className="flex justify-between px-4 pt-4">
             <UserInformations />
@@ -61,7 +75,11 @@ const HomePage = () => {
             {/* Searchbar and icons */}
             <div className="flex items-center mt-2 px-4">
               <SearchBar initialValue="Search contacts or the web..." />
-              <div className="flex gap-1 items-center aerobutton p-1 ml-1 h-6">
+              <div
+                className="add-friend-button flex items-center gap-1 p-1 ml-1 h-6 cursor-pointer outline-none"
+                aria-label="Add a friend"
+                onClick={() => setShowAddFriend(true)}
+              >
                 <div className="w-5">
                   <img src={addcontact} alt="" />
                 </div>
@@ -86,10 +104,10 @@ const HomePage = () => {
 
             <div className="overflow-y-auto has-scrollbar h-[58.8vh]">
               {/* Contacts */}
-              <ContactCategory title="Favorites" contacts={favoritesContacts} count={favoritesContacts.length} />
-              <ContactCategory title="Groups" contacts={groupsContacts} count={groupsContacts.length} />
-              <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} />
-              <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} />
+              <ContactCategory title="Favorites" contacts={favoritesContacts} count={favoritesContacts.length} onOpenChat={openChat} />
+              <ContactCategory title="Groups" contacts={groupsContacts} count={groupsContacts.length} onOpenChat={openChat} />
+              <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} onOpenChat={openChat} />
+              <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} onOpenChat={openChat} />
             </div>
           </div>
 
@@ -105,7 +123,20 @@ const HomePage = () => {
           </footer>
         </div>
       </div>
-    </Background>
+      </Background>
+      {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} onSend={sendFriendInvitation} />}
+      {activeInvitation && <FriendInvitationModal request={activeInvitation} onClose={() => setActiveInvitation(null)} onRespond={respondToFriendInvitation} />}
+      <div className="pointer-events-none fixed inset-0 z-50">
+        {openChatIds.map((contactId, index) => (
+          <ChatWindow
+            key={contactId}
+            contactId={contactId}
+            onClose={() => closeChat(contactId)}
+            windowIndex={index}
+          />
+        ))}
+      </div>
+    </>
   );
 };
 

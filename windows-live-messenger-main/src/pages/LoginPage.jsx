@@ -1,84 +1,88 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import AvatarLarge from '../components/AvatarLarge';
 import statusFrames from '../imports/statusFrames';
 import Background from '../components/Background';
 import Dropdown from '../components/Dropdown';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import '7.css/dist/7.scoped.css';
 import bg from '/assets/background/background.jpg';
-import CryptoJS from 'crypto-js';
-import { isAuthenticated, authenticateWithDiscord, isDiscordAuthenticated } from '../utils/auth';
-import { getDiscordAuthUrl } from '../utils/discordAuth';
 import UnableToConnectModal from '../components/UnableToConnectModal';
-import DiscordLogo from '/assets/general/discord.png';
+import { AuthContext } from '../contexts/AuthContext';
+import { signInWithMicrosoft } from '../utils/microsoftAuth';
 
 const LoginPage = () => {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [showUnableToConnectModal, setShowUnableToConnectModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [status, setStatus] = useState('Available');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [username, setUsername] = useState('');
   const [rememberMe, setRememberMe] = useState(localStorage.getItem('rememberme') === 'true');
   const [rememberPassword, setRememberPassword] = useState(localStorage.getItem('rememberpassword') === 'true');
   const [signInAutomatically, setSignInAutomatically] = useState(localStorage.getItem('signinautomatically') === 'true');
-  const [password, setPassword] = useState(rememberPassword ? '••••••••••' : '');
-  const [email, setEmail] = useState(rememberMe ? localStorage.getItem('email') : '');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(rememberMe ? localStorage.getItem('email') || '' : '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, register, loginWithMicrosoft } = useContext(AuthContext);
 
-  const handleDiscordAuth = () => {
-    window.location.href = getDiscordAuthUrl();
+  const handleMicrosoftAuth = async () => {
+    setIsSubmitting(true);
+    try {
+      const idToken = await signInWithMicrosoft();
+      await loginWithMicrosoft(idToken);
+      navigate('/');
+    } catch (error) {
+      setModalMessage(error.response?.data?.error || error.message || 'Unable to sign in with Microsoft.');
+      setShowUnableToConnectModal(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
-    if (isAuthenticated() || isDiscordAuthenticated()) {
+    if (localStorage.getItem('messenger_token')) {
       navigate('/');
     }
   }, [navigate]);
 
-  const handleSignIn = () => {
-    const hashedPassword = CryptoJS.SHA256(password).toString();
+  const handleSignIn = async (event) => {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
     const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-
-    if (!email || !isValidEmail(email)) {
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
       setModalMessage('Please enter a valid email in the format: example@example.com');
       setShowUnableToConnectModal(true);
       return;
     }
-
     if (!password) {
       setModalMessage('Please enter your password');
       setShowUnableToConnectModal(true);
       return;
     }
-
-    localStorage.setItem('email', email);
-    localStorage.setItem('password', hashedPassword);
-    localStorage.setItem('status', status);
-    localStorage.setItem('rememberme', rememberMe.toString());
-    localStorage.setItem('rememberpassword', rememberPassword.toString());
-    localStorage.setItem('signinautomatically', signInAutomatically.toString());
-    localStorage.setItem('scene', '/assets/scenes/default_background.png');
-    localStorage.setItem('colorScheme', '/assets/color_schemes/match_my_scene_color.png');
-    localStorage.setItem('name', '');
-    localStorage.setItem('message', '');
-
-    if (localStorage.getItem('email') && localStorage.getItem('password')) {
-      localStorage.setItem('loggedin', 'true');
+    setIsSubmitting(true);
+    try {
+      if (isRegistering) {
+        if (!username.trim()) throw new Error('Please enter a display name');
+        await register({ email: normalizedEmail, username: username.trim(), password, status: status.toLowerCase() });
+      } else {
+        await login({ email: normalizedEmail, password });
+      }
+      localStorage.setItem('email', normalizedEmail);
+      localStorage.setItem('status', status);
+      localStorage.setItem('rememberme', rememberMe.toString());
+      localStorage.setItem('rememberpassword', rememberPassword.toString());
+      localStorage.setItem('signinautomatically', signInAutomatically.toString());
+      localStorage.setItem('scene', '/assets/scenes/default_background.png');
+      localStorage.setItem('colorScheme', '/assets/color_schemes/match_my_scene_color.png');
       navigate('/');
+    } catch (error) {
+      setModalMessage(error.response?.data?.error || 'Unable to sign in. Start the messenger server and try again.');
+      setShowUnableToConnectModal(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    const code = searchParams.get('code');
-    if (code) {
-      authenticateWithDiscord(code)
-        .then(() => navigate('/'))
-        .catch((error) => {
-          console.error('Discord Auth Error:', error.message);
-          setModalMessage('Failed to authenticate with Discord. Please try again.');
-          setShowUnableToConnectModal(true);
-        });
-    }
-  }, [searchParams, navigate]);
 
   const options = [
     { value: 'Available', label: 'Available', image: statusFrames.onlineDot },
@@ -94,23 +98,36 @@ const LoginPage = () => {
   return (
     <Background>
       <div className="bg-no-repeat bg-[length:100%_100px] h-screen" style={{ backgroundImage: `url(${bg})` }}>
-        <div className="flex flex-col items-center w-full pt-4 win7 font-sans text-base">
+        <div className="msn-font flex flex-col items-center w-full pt-4 win7 font-sans text-base">
           <AvatarLarge image={localStorage.getItem('rememberme') === 'true' ? localStorage.getItem('picture') : undefined} />
-          <p className="mt-4 text-xl text-[#1D2F7F]">Sign in</p>
+          <p className="mt-4 text-[28px] font-light text-[#1D2F7F]">Sign in</p>
           <p className="mb-4">Enter a name and a password to start chatting</p>
 
-          <fieldset>
+          <form onSubmit={handleSignIn} className="flex w-full max-w-[676px] flex-col items-center">
+            <fieldset className="w-[calc(100%-2rem)] max-w-[640px]">
             <input
               className="w-full placeholder:italic"
               type="email"
+              autoComplete="username"
               placeholder="Example555@hotmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
+            {isRegistering && (
+              <input
+                className="w-full mt-2 placeholder:italic"
+                type="text"
+                placeholder="Display name"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            )}
             <input
               className="w-full mt-2 placeholder:italic"
               type="password"
+              autoComplete={isRegistering ? 'new-password' : 'current-password'}
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -119,7 +136,7 @@ const LoginPage = () => {
 
             <div className="flex my-4">
               <p>Sign in as:</p>
-              <Dropdown options={options} value={status} onChange={(option) => setStatus(option.value)} showStatusDots={true} />
+              <Dropdown options={options} value={status} onChange={setStatus} showStatusDots={true} showUserName={false} />
             </div>
 
             <div>
@@ -160,16 +177,25 @@ const LoginPage = () => {
                 <label htmlFor="signinautomatically">Sign me in automatically</label>
               </div>
             </div>
-          </fieldset>
+            </fieldset>
 
-          <div className="flex gap-2 items-center mt-4">
-            <button onClick={handleSignIn}>Sign in</button>
-            OR
-            <button onClick={handleDiscordAuth} className="flex gap-2 items-center">
-              <img src={DiscordLogo} alt="Discord" className="w-6 h-6 p-1" />
-              Sign in with Discord
-            </button>
-          </div>
+            <div className="mt-4 flex w-[calc(100%-2rem)] max-w-[714px] flex-wrap items-center justify-center gap-2">
+              <button type="submit" disabled={isSubmitting}>{isRegistering ? 'Create account' : 'Sign in'}</button>
+              <button type="button" disabled={isSubmitting} onClick={() => setIsRegistering((value) => !value)}>
+                {isRegistering ? 'I already have an account' : 'Create an account'}
+              </button>
+              <span aria-hidden="true">OR</span>
+              <button type="button" disabled={isSubmitting} onClick={handleMicrosoftAuth} className="flex items-center gap-2">
+                Sign In with Microsoft
+                <span className="microsoft-logo" aria-label="Microsoft" role="img">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
       {showUnableToConnectModal && (

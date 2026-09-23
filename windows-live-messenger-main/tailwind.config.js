@@ -3,7 +3,7 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     fontFamily: {
-      sans: ['Segoe UI'],
+      sans: ['"Segoe UI"', '"Segoe UI Variable"', '"Noto Sans"', '"Helvetica Neue"', 'Arial', 'sans-serif'],
     },
     fontSize: {
       sm: '14px',

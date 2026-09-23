@@ -2,7 +2,7 @@ import React from 'react';
 import bg from '/assets/background/background.jpg';
 import colorSchemes from '../imports/colorSchemes';
 
-const Background = ({ children }) => {
+const Background = ({ children, className = 'h-screen' }) => {
   const colorScheme = localStorage.getItem('colorScheme');
 
   const hexToRgba = (hex, alpha) => {
@@ -16,13 +16,13 @@ const Background = ({ children }) => {
 
   return (
     <div
-      className="relative h-screen bg-no-repeat bg-bottom bg-[length:100%_400px] bg-gradient-to-t via-white"
+      className={`relative ${className} bg-no-repeat bg-bottom bg-[length:100%_400px] bg-gradient-to-t via-white`}
       style={{
         backgroundImage: `linear-gradient(to top, ${colorSchemeRgba}, white), url(${bg})`,
         backgroundSize: '100% 400px',
       }}
     >
-      <div className="h-full bg-no-repeat bg-[length:100%_100px]" style={{ backgroundImage: `url(${bg})` }}>
+      <div className="h-full min-h-0 bg-no-repeat bg-[length:100%_100px]" style={{ backgroundImage: `url(${bg})` }}>
         {children}
       </div>
     </div>
