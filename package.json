@@ -1,0 +1,46 @@
+{
+  "name": "furg-live-messenger",
+  "private": false,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "server": "npm --prefix server run start",
+    "server:dev": "npm --prefix server run dev"
+  },
+  "dependencies": {
+    "@radix-ui/react-select": "^2.2.5",
+    "@vercel/analytics": "^1.3.1",
+    "7.css": "^0.18.0",
+    "axios": "^1.7.2",
+    "color-thief-react": "^2.1.0",
+    "i18next": "^23.10.1",
+    "i18next-browser-languagedetector": "^7.2.1",
+    "i18next-http-backend": "^2.5.0",
+    "openai": "^5.8.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.53.0",
+    "react-i18next": "^15.0.1",
+    "react-icons": "^5.2.1",
+    "react-router-dom": "^6.20.0",
+    "react-secure-storage": "^1.3.2",
+    "react-toastify": "^10.0.5"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "postcss": "^8.4.30",
+    "postcss-prefixwrap": "^1.55.0",
+    "tailwindcss": "^3.3.3",
+    "vite": "^4.4.5"
+  }
+}

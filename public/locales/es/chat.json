@@ -1,0 +1,46 @@
+{
+    "search": "Busca contactos o en la web...",
+    "alert": "No incluyas información como contraseñas o números de tarjeta de crédito.",
+    "says": "dijo:",
+    "header-message": "Comparte un mensaje...",
+    "ai": {
+        "username": "Una IA sencilla <3",
+        "bio": "No soy simple, soy una súper IA"
+    },
+    "emoticons": {
+        "title": "Tus emoticonos",
+        "recently": "Emoticonos usados recientemente",
+        "pinned": "Emoticonos fijados",
+        "all": "Mostrar todos"
+    },
+    "winks": {
+        "title": "Tus guiños",
+        "recently": "Guiños usados recientemente",
+        "pinned": "Guiños fijados",
+        "all": "Mostrar todos",
+        "contact": "Tu amigo envió un guiño.",
+        "me": "Enviaste un guiño."
+    },
+    "nudge": {
+        "contact": "Tu amigo te dio un toque.",
+        "me": "Diste un toque a tu amigo."
+    },
+    "status": {
+        "online": "Disponible",
+        "away": "Ausente",
+        "busy": "Ocupado",
+        "offline": "Invisible"
+    },
+    "contacts": {
+        "favorites": "Favoritos",
+        "groups": "Grupos",
+        "available": "Disponible",
+        "offline": "Desconectado"
+    },
+    "dropdown": {
+        "logout": "Cerrar sesión",
+        "picture": "Cambiar imagen de perfil...",
+        "scene": "Cambiar portada...",
+        "name": "Cambiar nombre y mensaje..."
+    }
+}

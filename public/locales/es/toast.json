@@ -1,0 +1,58 @@
+{
+    "logout": "🫡 Has cerrado sesión en tu cuenta.",
+    "message": {
+        "title": "Notificación de Mensaje",
+        "text": "💬 Tu contacto te envió un mensaje.",
+        "open": "Abrir chat"
+    },
+    "wink": {
+        "title": "Notificación de guiño",
+        "text": "😜 Tu contacto te envió un guiño.",
+        "open": "Abrir guiño"
+    },
+    "nudge": {
+        "title": "Toque",
+        "text": "🫵 Tu contacto te dio un toque.",
+        "open": "Abrir chat"
+    },
+    "friendship": {
+        "title": "Solicitud Recibida",
+        "text": "📩 ¡Nueva solicitud de amistad!",
+        "accepted-title": "Solicitud Aceptada",
+        "accepted-text": "✅ ¡Un amigo aceptó tu solicitud de amistad!",
+        "request-sent-title": "Solicitud Enviada",
+        "request-sent": "✅ Solicitud de amistad enviada con éxito.",
+        "already-sent-title": "Solicitud Existente",
+        "already-sent": "🫵 Ya enviaste esta solicitud o ya son amigos.",
+        "invalid-title": "Correo inválido",
+        "invalid": "⛔ Correo inválido o usuario no encontrado.",
+        "error-title": "Error en la Solicitud",
+        "error": "⛔ Ocurrió un error al enviar la solicitud.",
+        "accepted-error-title": "Error al Aceptar",
+        "accepted-error": "⛔ Hubo un error al aceptar la amistad.",
+        "rejected-error-title": "Error al Rechazar",
+        "rejected-error": "⛔ Hubo un error al rechazar la amistad.",
+        "rejected-title": "Solicitud Rechazada",
+        "rejected": "✅ Solicitud de amistad rechazada con éxito.",
+        "generic-error-title": "Error",
+        "generic-error": "⛔ Algo salió mal, intenta nuevamente más tarde."
+    },
+    "errors": {
+        "title": "Error",
+        "pending-invites": "😔 No se pudieron obtener las solicitudes pendientes.",
+        "session-expired": "🔒 Tu sesión ha expirado, inicia sesión nuevamente.",
+        "friendships": "👥 Ocurrió un error al obtener tus amigos.",
+        "users": "👥 Ocurrió un error al obtener el directorio de usuarios.",
+        "conversation": "💬 No se pudo abrir esta conversación.",
+        "message": "😔 Ocurrió un error al enviar el nuevo mensaje.",
+        "messages": "📥 Error al obtener los mensajes.",
+        "update": "⛔ Error al actualizar tu información.",
+        "friendship-pending-title": "Error al obtener",
+        "friendship-pending": "😔 No se pudieron obtener las solicitudes pendientes."
+    },
+    "status": {
+        "title": "Amigo Disponible",
+        "text": "🫡 Tu contacto {{name}} está disponible.",
+        "open": "Abrir chat"
+    }
+}

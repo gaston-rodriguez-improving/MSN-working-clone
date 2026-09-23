@@ -1,0 +1,58 @@
+{
+    "logout": "🫡 Você saiu da sua conta.",
+    "message": {
+        "title": "Notificação de Mensagem",
+        "text": "💬 Seu contato enviou uma mensagem.",
+        "open": "Abrir chat"
+    },
+    "wink": {
+        "title": "Notificação de piscadela",
+        "text": "😜 Seu contato enviou uma piscadela.",
+        "open": "Abrir piscadela"
+    },
+    "nudge": {
+        "title": "Cutucada",
+        "text": "🫵 Seu contato cutucou você.",
+        "open": "Abrir chat"
+    },
+    "friendship": {
+        "title": "Pedido Recebido",
+        "text": "📩 Novo pedido de amizade!",
+        "accepted-title": "Pedido Aceito",
+        "accepted-text": "✅ Um amigo aceitou seu pedido de amizade!",
+        "request-sent-title": "Pedido Enviado",
+        "request-sent": "✅ Pedido de amizade enviado com sucesso.",
+        "already-sent-title": "Pedido Existente",
+        "already-sent": "🫵 Você já enviou esse pedido ou vocês já são amigos.",
+        "invalid-title": "E-mail inválido",
+        "invalid": "⛔ E-mail inválido ou usuário não encontrado.",
+        "error-title": "Erro no Pedido",
+        "error": "⛔ Algo ocorreu mal ao enviar o pedido.",
+        "accepted-error-title": "Erro ao aceitar",
+        "accepted-error": "⛔ Houve um erro ao aceitar a amizade.",
+        "rejected-error-title": "Erro ao recusar",
+        "rejected-error": "⛔ Houve um erro ao recusar a amizade.",
+        "rejected-title": "Pedido Recusado",
+        "rejected": "✅ Amizade recusada com sucesso.",
+        "generic-error-title": "Erro",
+        "generic-error": "⛔ Algo ocorreu mal, tente novamente mais tarde."
+    },
+    "errors": {
+        "title": "Erro",
+        "pending-invites": "😔 Não foi possível buscar pedidos pendentes.",
+        "session-expired": "🔒 Sua sessão expirou, faça o login novamente.",
+        "friendships": "👥 Algo ocorreu mal ao buscar seus amigos.",
+        "users": "👥 Algo ocorreu mal ao buscar o diretório de usuários.",
+        "conversation": "💬 Não foi possível abrir esta conversa.",
+        "message": "😔 Algo ocorreu mal ao enviar a nova mensagem.",
+        "messages": "📥 Erro ao buscar mensagens.",
+        "update": "⛔ Erro ao atualizar suas informações.",
+        "friendship-pending-title": "Erro ao buscar",
+        "friendship-pending": "😔 Não foi possível buscar pedidos pendentes."
+    },
+    "status": {
+        "title": "Amigo Disponível",
+        "text": "🫡 Seu contato {{name}} ficou disponível.",
+        "open": "Abrir chat"
+    }
+}

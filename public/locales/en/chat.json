@@ -1,0 +1,46 @@
+{
+    "search": "Search contacts or the web...",
+    "alert": "Do not include information such as passwords or credit card numbers.",
+    "says": "said:",
+    "header-message": "Share a message...",
+    "ai": {
+        "username": "A simple AI <3",
+        "bio": "I'm not simple, I'm a super AI"
+    },
+    "emoticons": {
+        "title": "Your emoticons",
+        "recently": "Recently used emoticons",
+        "pinned": "Pinned emoticons",
+        "all": "Show all"
+    },
+    "winks": {
+        "title": "Your winks",
+        "recently": "Recently used winks",
+        "pinned": "Pinned winks",
+        "all": "Show all",
+        "contact": "Your friend sent a wink.",
+        "me": "You sent a wink."
+    },
+    "nudge": {
+        "contact": "Your friend nudged you.",
+        "me": "You nudged your friend."
+    },
+    "status": {
+        "online": "Available",
+        "away": "Away",
+        "busy": "Busy",
+        "offline": "Invisible"
+    },
+    "contacts": {
+        "favorites": "Favorites",
+        "groups": "Groups",
+        "available": "Available",
+        "offline": "Offline"
+    },
+    "dropdown": {
+        "logout": "Log out",
+        "picture": "Change display picture...",
+        "scene": "Change scene...",
+        "name": "Change name and status..."
+    }
+}

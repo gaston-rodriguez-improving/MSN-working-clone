@@ -1,0 +1,21 @@
+.modal-border-container #modal-border-avatar-div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 3px;
+    margin-top: 2px;
+}
+
+.modal-border-container #modal-border-avatar-frame {
+    position: absolute;
+}
+
+.modal-border-container #frame-div-avatar {
+    width: 100%;
+    height: 100%;
+}
+
+.modal-border-container #frame-div-avatar #modal-border-avatar-picture {
+    width: inherit;
+    border-radius: 3px;
+}

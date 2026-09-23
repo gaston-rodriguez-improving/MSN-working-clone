@@ -1,0 +1,58 @@
+{
+    "logout": "🫡 You have logged out of your account.",
+    "message": {
+        "title": "Message Notification",
+        "text": "💬 Your contact sent you a message.",
+        "open": "Open chat"
+    },
+    "wink": {
+        "title": "Wink Notification",
+        "text": "😜 Your contact sent you a wink.",
+        "open": "Open wink"
+    },
+    "nudge": {
+        "title": "Nudge",
+        "text": "🫵 Your contact nudged you.",
+        "open": "Open chat"
+    },
+    "friendship": {
+        "title": "Request Received",
+        "text": "📩 New friend request!",
+        "accepted-title": "Request Accepted",
+        "accepted-text": "✅ A friend accepted your friend request!",
+        "request-sent-title": "Request Sent",
+        "request-sent": "✅ Friend request sent successfully.",
+        "already-sent-title": "Existing Request",
+        "already-sent": "🫵 You already sent this request or you're already friends.",
+        "invalid-title": "Invalid Email",
+        "invalid": "⛔ Invalid email or user not found.",
+        "error-title": "Request Error",
+        "error": "⛔ Something went wrong while sending the request.",
+        "accepted-error-title": "Error Accepting",
+        "accepted-error": "⛔ There was an error accepting the friend request.",
+        "rejected-error-title": "Error Rejecting",
+        "rejected-error": "⛔ There was an error rejecting the friend request.",
+        "rejected-title": "Request Rejected",
+        "rejected": "✅ Friend request successfully rejected.",
+        "generic-error-title": "Error",
+        "generic-error": "⛔ Something went wrong, please try again later."
+    },
+    "errors": {
+        "title": "Error",
+        "pending-invites": "😔 Could not fetch pending requests.",
+        "session-expired": "🔒 Your session has expired, please log in again.",
+        "friendships": "👥 Something went wrong while fetching your friends.",
+        "users": "👥 Something went wrong while fetching the user directory.",
+        "conversation": "💬 Could not open this conversation.",
+        "message": "😔 Something went wrong while sending the new message.",
+        "messages": "📥 Error fetching messages.",
+        "update": "⛔ Error updating your information.",
+        "friendship-pending-title": "Fetch Error",
+        "friendship-pending": "😔 Could not retrieve pending requests."
+    },
+    "status": {
+        "title": "Friend Available",
+        "text": "🫡 Your contact {{name}} is now available.",
+        "open": "Open chat"
+    }
+}

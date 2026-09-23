@@ -1,0 +1,46 @@
+{
+    "search": "Procure contatos ou na web...",
+    "alert": "Não inclua informações como senhas ou números de cartão de crédito.",
+    "says": "disse:",
+    "header-message": "Compartilhe uma mensagem...",
+    "ai": {
+        "username": "Uma IA simples <3",
+        "bio": "Eu não sou simples, sou uma super IA"
+    },
+    "emoticons": {
+        "title": "Seus emoticons",
+        "recently": "Emoticons usados recentemente",
+        "pinned": "Emoticons fixados",
+        "all": "Mostrar todos"
+    },
+    "winks": {
+        "title": "Seus winks",
+        "recently": "Winks usados recentemente",
+        "pinned": "Winks fixados",
+        "all": "Mostrar todos",
+        "contact": "Seu amigo enviou um wink.",
+        "me": "Você enviou um wink."
+    },
+    "nudge": {
+        "contact": "Seu amigo cutucou.",
+        "me": "Você cutucou seu amigo."
+    },
+    "status": {
+        "online": "Disponível",
+        "away": "Ausente",
+        "busy": "Ocupado",
+        "offline": "Invisível"
+    },
+    "contacts": {
+        "favorites": "Favoritos",
+        "groups": "Grupos",
+        "available": "Disponível",
+        "offline": "Offline"
+    },
+    "dropdown": {
+        "logout": "Sair",
+        "picture": "Alterar imagem de exibição...",
+        "scene": "Alterar capa...",
+        "name": "Alterar nome e recado..."
+    }
+}
