@@ -14,6 +14,7 @@ export function ChatProvider({ children }) {
   const [friendRequests, setFriendRequests] = useState([]);
   const [messages, setMessages] = useState({});
   const [activeChatId, setActiveChatId] = useState(null);
+  const [chatRequest, setChatRequest] = useState(null);
   const socketRef = useRef(null);
   const contactsRef = useRef([]);
   const activeRef = useRef(null);
@@ -54,12 +55,13 @@ export function ChatProvider({ children }) {
     if (!token) return;
     socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(token)}`);
     socketRef.current = socket;
+    socket.onopen = () => { getFriends().then(({ data }) => { const list = (data.users || []).map(toContact); setContacts((prev) => { const known = new Set(prev.map((c) => c.id)); return [...prev, ...list.filter((c) => !known.has(c.id))]; }); }).catch(() => {}); getFriendRequests().then(({ data }) => setFriendRequests(data.requests || [])).catch(() => {}); };
     socket.onclose = () => { if (!closed) retryTimer = setTimeout(connect, 2000); };
     socket.onmessage = (event) => {
       try {
         const { type, payload } = JSON.parse(event.data);
         if (type === 'message' && appendMessage(payload)) {
-          const notify = (sender) => { if (sender && payload.chatId !== activeRef.current && !payload.drawAttention && !payload.winks) showNotification({ title: sender.username, text: payload.content, avatar: sender.avatar, onOpen: () => { window.location.href = `/chat/${sender.id}`; } }); };
+          const notify = (sender) => { if (sender && payload.chatId !== activeRef.current && !payload.drawAttention && !payload.winks) showNotification({ title: sender.username, text: payload.content, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) }); };
           const sender = contactsRef.current.find((contact) => contact.id === payload.senderId);
           if (sender) notify(sender);
           else getFriends().then(({ data }) => { const list = data.users || []; const found = list.find((contact) => contact.id === payload.senderId); setContacts((prev) => { const known = new Set(prev.map((c) => c.id)); return [...prev, ...list.filter((c) => !known.has(c.id)).map((c) => ({ ...c, name: c.username, message: c.bio || '', image: c.avatar === 'default' ? '/assets/usertiles/default.png' : c.avatar }))]; }); notify(found); }).catch(() => {});
@@ -106,5 +108,5 @@ export function ChatProvider({ children }) {
   }, []);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ contacts, friendRequests, messages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, messages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, send }}>{children}</ChatContext.Provider>;
 }

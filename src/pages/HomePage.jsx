@@ -17,7 +17,7 @@ import AddFriendModal from '../components/AddFriendModal';
 import FriendInvitationModal from '../components/FriendInvitationModal';
 
 const HomePage = () => {
-  const { contacts, friendRequests, sendFriendInvitation, respondToFriendInvitation } = useContext(ChatContext);
+  const { chatRequest, contacts, friendRequests, sendFriendInvitation, respondToFriendInvitation } = useContext(ChatContext);
   const [openChatIds, setOpenChatIds] = React.useState([]);
   const [showAddFriend, setShowAddFriend] = React.useState(false);
   const [activeInvitation, setActiveInvitation] = React.useState(null);
@@ -26,6 +26,10 @@ const HomePage = () => {
     const incomingInvitation = friendRequests.find((request) => request.direction !== 'outgoing');
     if (!activeInvitation && incomingInvitation) setActiveInvitation(incomingInvitation);
   }, [friendRequests, activeInvitation]);
+
+  React.useEffect(() => {
+    if (chatRequest) setOpenChatIds((currentIds) => (currentIds.includes(chatRequest.id) ? currentIds : [...currentIds, chatRequest.id]));
+  }, [chatRequest]);
 
   // Filtrage des contacts par statut
   const favoritesContacts = contacts.filter((contact) => contact.isFavorite === 1);
