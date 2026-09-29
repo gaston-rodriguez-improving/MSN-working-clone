@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AuthContext } from './AuthContext';
 import { useToast } from './ToastContext';
-import { getAllMessages, getFriendRequests, getUsers, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
+import { getAllMessages, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
 
 export const ChatContext = createContext(null);
+
+const toContact = (contact) => ({ ...contact, name: contact.username, message: contact.bio || '', image: contact.avatar === 'default' ? '/assets/usertiles/default.png' : contact.avatar });
 
 export function ChatProvider({ children }) {
   const { user } = useContext(AuthContext);
@@ -18,6 +20,8 @@ export function ChatProvider({ children }) {
   const messageIds = useRef(new Set());
 
   useEffect(() => { contactsRef.current = contacts; }, [contacts]);
+  const requestsRef = useRef([]);
+  useEffect(() => { requestsRef.current = friendRequests; }, [friendRequests]);
   useEffect(() => { activeRef.current = activeChatId; }, [activeChatId]);
 
   const appendMessage = useCallback((message) => {
@@ -30,14 +34,9 @@ export function ChatProvider({ children }) {
   useEffect(() => {
     if (!user) return undefined;
     let cancelled = false;
-    Promise.all([getUsers(), getAllMessages(), getFriendRequests()]).then(([usersResponse, messagesResponse, requestsResponse]) => {
+    Promise.all([getFriends(), getAllMessages(), getFriendRequests()]).then(([usersResponse, messagesResponse, requestsResponse]) => {
       if (cancelled) return;
-      const users = (usersResponse.data.users || []).map((contact) => ({
-        ...contact,
-        name: contact.username,
-        message: contact.bio || '',
-        image: contact.avatar === 'default' ? '/assets/usertiles/default.png' : contact.avatar,
-      }));
+      const users = (usersResponse.data.users || []).map(toContact);
       setContacts(users);
       setFriendRequests(requestsResponse.data.requests || []);
       const data = messagesResponse.data;
@@ -49,15 +48,21 @@ export function ChatProvider({ children }) {
 
   useEffect(() => {
     if (!user) return undefined;
+    let closed = false; let socket; let retryTimer;
+    const connect = () => {
     const token = localStorage.getItem('messenger_token');
-    const socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(token)}`);
+    if (!token) return;
+    socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(token)}`);
     socketRef.current = socket;
+    socket.onclose = () => { if (!closed) retryTimer = setTimeout(connect, 2000); };
     socket.onmessage = (event) => {
       try {
         const { type, payload } = JSON.parse(event.data);
         if (type === 'message' && appendMessage(payload)) {
+          const notify = (sender) => { if (sender && payload.chatId !== activeRef.current && !payload.drawAttention && !payload.winks) showNotification({ title: sender.username, text: payload.content, avatar: sender.avatar, onOpen: () => { window.location.href = `/chat/${sender.id}`; } }); };
           const sender = contactsRef.current.find((contact) => contact.id === payload.senderId);
-          if (sender && payload.chatId !== activeRef.current && !payload.drawAttention && !payload.winks) showNotification({ title: sender.username, text: payload.content, avatar: sender.avatar, onOpen: () => { window.location.href = `/chat/${sender.id}`; } });
+          if (sender) notify(sender);
+          else getFriends().then(({ data }) => { const list = data.users || []; const found = list.find((contact) => contact.id === payload.senderId); setContacts((prev) => { const known = new Set(prev.map((c) => c.id)); return [...prev, ...list.filter((c) => !known.has(c.id)).map((c) => ({ ...c, name: c.username, message: c.bio || '', image: c.avatar === 'default' ? '/assets/usertiles/default.png' : c.avatar }))]; }); notify(found); }).catch(() => {});
         }
         if (type === 'friend_request') {
           const request = { ...payload, user: payload.user };
@@ -66,6 +71,7 @@ export function ChatProvider({ children }) {
         }
         if (type === 'friend_request_update') {
           setFriendRequests((prev) => prev.filter((request) => request.id !== payload.id));
+          if (payload.status === 'accepted') setContacts((prev) => prev.some((c) => c.id === payload.user.id) ? prev : [...prev, toContact(payload.user)]);
           showNotification({ title: payload.user.username, text: payload.status === 'accepted' ? 'accepted your friend invitation.' : 'declined your friend invitation.', avatar: payload.user.avatar });
         }
         if (type === 'user_status_update' || type === 'user_bio_update' || type === 'user_avatar_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, message: payload.bio || contact.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
@@ -73,8 +79,10 @@ export function ChatProvider({ children }) {
         return;
       }
     };
-    return () => { socket.close(); socketRef.current = null; };
-  }, [user, appendMessage, showNotification]);
+    };
+    connect();
+    return () => { closed = true; clearTimeout(retryTimer); socket?.close(); socketRef.current = null; };
+  }, [user?.id, appendMessage, showNotification]);
 
   const sendFriendInvitation = useCallback(async (userId, message) => {
     const { data } = await sendFriendRequest(userId, message);
@@ -83,6 +91,8 @@ export function ChatProvider({ children }) {
   }, []);
   const respondToFriendInvitation = useCallback(async (requestId, status) => {
     await respondToFriendRequest(requestId, status);
+    const accepted = status === 'accepted' && requestsRef.current.find((request) => request.id === requestId)?.user;
+    if (accepted) setContacts((prev) => prev.some((c) => c.id === accepted.id) ? prev : [...prev, toContact(accepted)]);
     setFriendRequests((prev) => prev.filter((request) => request.id !== requestId));
   }, []);
   const openConversation = useCallback(async (contactId) => {

@@ -4,6 +4,12 @@ import sounds from '../imports/sounds';
 const ToastContext = createContext(null);
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState(null);
+  useEffect(() => {
+    // Browsers block audio until a user gesture; after a Microsoft redirect login the page has none, so unlock on first interaction.
+    const unlock = () => { const a = new Audio(sounds.newmessage); a.muted = true; a.play().then(() => a.pause()).catch(() => {}); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
+    window.addEventListener('pointerdown', unlock); window.addEventListener('keydown', unlock);
+    return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
+  }, []);
   const showNotification = useCallback((notification) => { setToast(notification); const audio = new Audio(sounds.newmessage); audio.play().catch(() => {}); }, []);
   const closeNotification = useCallback(() => setToast(null), []);
   return <ToastContext.Provider value={{ showNotification, closeNotification }}>{children}{toast && <RetroNotification {...toast} onClose={closeNotification} />}</ToastContext.Provider>;

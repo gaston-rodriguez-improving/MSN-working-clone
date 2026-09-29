@@ -82,7 +82,7 @@ const UserInformation = () => {
         <div className="flex items-center gap-1">
           <Dropdown options={options} value={user.status} onChange={handleStatusChange} showUserName />
         </div>
-        <div className="flex aerobutton pl-1 items-center white-light" onClick={handleMessageClick}>
+        <div className="flex w-fit max-w-full aerobutton pl-1 items-center white-light" onClick={handleMessageClick}>
           {isEditing ? (
             <input
               ref={inputRef}

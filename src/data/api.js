@@ -14,6 +14,7 @@ export const signInWithMicrosoft = (idToken) => api.post('/auth/microsoft', { id
 export const signUp = (data) => api.post('/auth/sign-up', data);
 export const checkToken = () => api.get('/auth/check-token');
 export const getUsers = (search = '') => api.get('/users', { params: search ? { search } : undefined });
+export const getFriends = () => api.get('/friends');
 export const getFriendRequests = () => api.get('/friend-requests');
 export const sendFriendRequest = (userId, message) => api.post('/friend-requests', { userId, message });
 export const respondToFriendRequest = (requestId, status) => api.patch(`/friend-requests/${requestId}`, { status });
