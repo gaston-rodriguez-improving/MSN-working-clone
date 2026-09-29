@@ -30,6 +30,7 @@ const UserInformation = () => {
       image: statusFrames.offlineDot,
     },
     { separator: true },
+    ...(typeof Notification !== 'undefined' ? [{ value: 'NudgeNotifications', label: 'Enable desktop nudge alerts' }] : []),
     { value: 'Sign out', label: 'Sign out' },
     { separator: true },
     { value: 'ChangeDisplayPicture', label: 'Change display picture...' },

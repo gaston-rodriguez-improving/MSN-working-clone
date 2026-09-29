@@ -77,9 +77,10 @@ export function ChatProvider({ children }) {
             messageEffectListeners.current.get(Number(payload.chatId))?.forEach((listener) => listener(payload));
           }
           const notify = (sender) => {
-            if (!sender || payload.chatId === activeRef.current) return;
+            const backgroundNudge = payload.drawAttention && document.visibilityState === 'hidden';
+            if (!sender || (payload.chatId === activeRef.current && !backgroundNudge)) return;
             const text = payload.drawAttention ? 'sent you a nudge.' : payload.winks ? 'sent you a wink.' : payload.content;
-            showNotification({ title: sender.username, text, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) });
+            showNotification({ title: sender.username, text, avatar: sender.avatar, kind: payload.drawAttention ? 'nudge' : payload.winks ? 'wink' : undefined, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) });
           };
           const sender = contactsRef.current.find((contact) => contact.id === payload.senderId);
           if (sender) notify(sender);

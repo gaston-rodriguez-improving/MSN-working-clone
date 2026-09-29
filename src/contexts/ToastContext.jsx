@@ -2,6 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import sounds from '../imports/sounds';
 
 const ToastContext = createContext(null);
+const NUDGE_NOTIFICATION_COOLDOWN = 60 * 60 * 1000;
+const LAST_NUDGE_NOTIFICATION_KEY = 'messenger_last_desktop_nudge_at';
+let lastNudgeNotificationAt = 0;
+
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState(null);
   useEffect(() => {
@@ -10,7 +14,46 @@ export function ToastProvider({ children }) {
     window.addEventListener('pointerdown', unlock); window.addEventListener('keydown', unlock);
     return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
   }, []);
-  const showNotification = useCallback((notification) => { setToast(notification); const audio = new Audio(sounds.newmessage); audio.play().catch(() => {}); }, []);
+  const showNotification = useCallback((notification) => {
+    setToast(notification);
+    const audio = new Audio(sounds.newmessage);
+    audio.play().catch(() => {});
+
+    if (notification.kind !== 'nudge' || document.visibilityState !== 'hidden') return;
+    const now = Date.now();
+    let lastNotification = lastNudgeNotificationAt;
+    try {
+      lastNotification = Math.max(lastNotification, Number(localStorage.getItem(LAST_NUDGE_NOTIFICATION_KEY) || 0));
+    } catch {
+      lastNotification = lastNudgeNotificationAt;
+    }
+    if (now - lastNotification < NUDGE_NOTIFICATION_COOLDOWN) return;
+
+    lastNudgeNotificationAt = now;
+    try {
+      localStorage.setItem(LAST_NUDGE_NOTIFICATION_KEY, String(now));
+    } catch {
+      lastNudgeNotificationAt = now;
+    }
+    window.focus();
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    try {
+      const desktopNotification = new Notification(notification.title, {
+        body: notification.text,
+        icon: '/assets/general/wlm-icon.png',
+        tag: 'messenger-nudge',
+        renotify: false,
+      });
+      desktopNotification.onclick = () => {
+        window.focus();
+        notification.onOpen?.();
+        desktopNotification.close();
+      };
+    } catch {
+      return;
+    }
+  }, []);
   const closeNotification = useCallback(() => setToast(null), []);
   return <ToastContext.Provider value={{ showNotification, closeNotification }}>{children}{toast && <RetroNotification {...toast} onClose={closeNotification} />}</ToastContext.Provider>;
 }
