@@ -1,8 +1,8 @@
 import { PublicClientApplication } from '@azure/msal-browser';
 
-const tenantId = import.meta.env.VITE_MICROSOFT_TENANT_ID;
-const clientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
-const redirectUri = import.meta.env.VITE_MICROSOFT_REDIRECT_URI || window.location.origin;
+const tenantId = import.meta.env.VITE_AZURE_AD_TENANT_ID;
+const clientId = import.meta.env.VITE_AZURE_AD_CLIENT_ID;
+const redirectUri = import.meta.env.VITE_AZURE_AD_REDIRECT_URI || window.location.origin;
 
 const msalInstance = new PublicClientApplication({
   auth: {
@@ -19,7 +19,7 @@ let initialization;
 
 const initializeMsal = async () => {
   if (!tenantId || !clientId) {
-    throw new Error('Microsoft Entra SSO is not configured. Set the Microsoft tenant and client IDs.');
+    throw new Error('Azure AD SSO is not configured. Set the Azure AD tenant and client IDs.');
   }
 
   initialization ||= msalInstance.initialize();
