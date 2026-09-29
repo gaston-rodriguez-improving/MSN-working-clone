@@ -7,21 +7,28 @@ import WLMIcon from '/assets/general/wlm-icon.png';
 import { updateAvatar } from '../data/api';
 
 const ChangeDisplayPictureModal = ({ setShowChangePictureModal }) => {
-  const [userPicture, setUserPicture] = useState(localStorage.getItem('picture'));
+  const storedUser = JSON.parse(localStorage.getItem('messenger_user') || 'null');
+  const storedPicture = localStorage.getItem('picture');
+  const initialAvatar = storedPicture
+    ? storedPicture === defaultAvatar ? 'default' : storedPicture
+    : storedUser?.avatar && storedUser.avatar !== 'default' ? storedUser.avatar : 'default';
+  const [userPicture, setUserPicture] = useState(initialAvatar === 'default' ? defaultAvatar : initialAvatar);
+  const [pendingAvatar, setPendingAvatar] = useState(initialAvatar);
+  const [isChanged, setIsChanged] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const fileInputRef = useRef(null);
 
   const updateUserPicture = (imageSrc) => {
-    localStorage.setItem('picture', imageSrc);
-    localStorage.setItem('discord_picture', imageSrc);
     setUserPicture(imageSrc);
-    updateAvatar(imageSrc).catch(() => {});
+    setPendingAvatar(imageSrc);
+    setIsChanged(true);
   };
 
   const removeUserPicture = () => {
-    localStorage.setItem('picture', defaultAvatar);
-    localStorage.setItem('discord_picture', defaultAvatar);
     setUserPicture(defaultAvatar);
-    updateAvatar('default').catch(() => {});
+    setPendingAvatar('default');
+    setIsChanged(true);
   };
 
   const handleButtonClick = () => {
@@ -56,6 +63,27 @@ const ChangeDisplayPictureModal = ({ setShowChangePictureModal }) => {
 
     ctx.drawImage(image, x, y, size, size, 0, 0, size, size);
     return canvas.toDataURL('image/png');
+  };
+
+  const handleOk = async () => {
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      if (isChanged) {
+        const { data } = await updateAvatar(pendingAvatar);
+        const savedPicture = data.avatar === 'default' ? defaultAvatar : data.avatar;
+        localStorage.setItem('picture', savedPicture);
+        localStorage.setItem('discord_picture', savedPicture);
+        const currentUser = JSON.parse(localStorage.getItem('messenger_user') || 'null');
+        if (currentUser) localStorage.setItem('messenger_user', JSON.stringify({ ...currentUser, avatar: data.avatar }));
+      }
+      setShowChangePictureModal(false);
+      window.location.reload();
+    } catch (error) {
+      setSaveError(error.response?.data?.error || 'Unable to save your display picture. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -116,18 +144,13 @@ const ChangeDisplayPictureModal = ({ setShowChangePictureModal }) => {
             {/* Footer */}
             <p className="link ml-4">Get a webcam</p>
             <p className="mb-4 link ml-4">Download more pictures...</p>
+            {saveError && <p className="mx-4 mb-2 text-red-700">{saveError}</p>}
             <div className="w-full bg-white h-[1px] shadow-sm shadow-[#6b8fa3]" />
             <div className="flex items-center justify-end rounded-b win7 p-3 gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowChangePictureModal(false);
-                  window.location.reload();
-                }}
-              >
-                OK
+              <button type="button" onClick={handleOk} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'OK'}
               </button>
-              <button type="button" onClick={() => setShowChangePictureModal(false)}>
+              <button type="button" onClick={() => setShowChangePictureModal(false)} disabled={isSaving}>
                 Close
               </button>
             </div>
