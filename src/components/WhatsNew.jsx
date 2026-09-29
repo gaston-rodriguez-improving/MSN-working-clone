@@ -5,7 +5,7 @@ const WhatsNew = () => {
   const [content, setContent] = useState(0);
   const [fadeClass, setFadeClass] = useState('fade-in');
   const messages = [
-    "Find the github repository of this MSN clone <a target='_blank' href='https://github.com/garcia-clara/windows-live-messenger-clone' class='link'>here</a>!",
+    "If you want to know the secrets of this project, please <a target='_blank' rel='noreferrer' href='https://www.youtube.com/watch?v=5SZYz7lZRRI&list=RD5SZYz7lZRRI&start_radio=1' class='link'>click here</a>",
     "The site is under construction, so don't be surprised to find bugs or missing features",
   ];
 
