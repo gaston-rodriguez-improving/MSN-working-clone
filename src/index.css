@@ -152,23 +152,23 @@ button:disabled {
   z-index: 1000;
   width: 234px;
   padding: 7px 8px 8px;
-  color: #17365f;
+  color: #243746;
   cursor: pointer;
-  border: 1px solid #6b9ac2;
+  border: 1px solid #8196a3;
   border-radius: 6px;
-  background: linear-gradient(180deg, #e3f5ff 0%, #cbe9fa 45%, #b5d9ee 100%);
+  background: linear-gradient(180deg, #fbfcfd 0%, #edf2f5 48%, #dce5ea 100%);
   box-shadow: 0 0 0 1px rgba(255,255,255,.9) inset, 0 2px 8px rgba(0,0,0,.4);
   font-family: Tahoma, sans-serif;
 }
-.retro-notification-header { display: flex; align-items: center; gap: 4px; padding-bottom: 5px; color: #12365f; font-size: 11px; font-weight: 700; }
+.retro-notification-header { display: flex; align-items: center; gap: 4px; padding-bottom: 5px; color: #1d2f7f; font-size: 11px; font-weight: 700; }
 .retro-notification-header img { width: 12px; height: 12px; }
 .retro-notification-body { display: flex; align-items: center; gap: 9px; padding: 3px 5px 5px; }
-.retro-notification-avatar { flex: none; width: 53px; height: 53px; padding: 3px; border: 2px solid #7fb0cf; border-radius: 5px; background: linear-gradient(145deg, #eaf8ff, #a8d5e8); box-shadow: 0 1px 3px rgba(0,0,0,.28); }
+.retro-notification-avatar { flex: none; width: 53px; height: 53px; padding: 3px; border: 2px solid #8196a3; border-radius: 5px; background: linear-gradient(145deg, #f7fafb, #cbd8df); box-shadow: 0 1px 3px rgba(0,0,0,.28); }
 .retro-notification-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
-.retro-notification-body strong { display: block; margin-bottom: 2px; color: #1f4e79; font-size: 14px; font-weight: 500; }
-.retro-notification-body p { max-width: 140px; margin: 0; overflow: hidden; color: #315d7d; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.retro-notification-action { float: right; border: 0; color: #17619b; background: transparent; font-size: 11px; text-decoration: underline; cursor: pointer; }
-.retro-notification-close { position: absolute; top: 3px; right: 6px; border: 0; color: #466b87; background: transparent; font-size: 17px; line-height: 16px; cursor: pointer; }
+.retro-notification-body strong { display: block; margin-bottom: 2px; color: #1d2f7f; font-size: 14px; font-weight: 500; }
+.retro-notification-body p { max-width: 140px; margin: 0; overflow: hidden; color: #3c5261; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.retro-notification-action { float: right; border: 0; color: #1232c2; background: transparent; font-size: 11px; text-decoration: underline; cursor: pointer; }
+.retro-notification-close { position: absolute; top: 3px; right: 6px; border: 0; color: #526b7a; background: transparent; font-size: 17px; line-height: 16px; cursor: pointer; }
 
 body {
   overflow: hidden;
