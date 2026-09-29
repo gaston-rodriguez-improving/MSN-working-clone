@@ -2,7 +2,7 @@ import { PublicClientApplication } from '@azure/msal-browser';
 
 const tenantId = import.meta.env.VITE_AZURE_AD_TENANT_ID;
 const clientId = import.meta.env.VITE_AZURE_AD_CLIENT_ID;
-const redirectUri = import.meta.env.VITE_AZURE_AD_REDIRECT_URI || window.location.origin;
+const redirectUri = import.meta.env.VITE_AZURE_AD_REDIRECT_URI || `${window.location.origin}/redirect.html`;
 
 const msalInstance = new PublicClientApplication({
   auth: {
