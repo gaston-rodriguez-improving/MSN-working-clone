@@ -17,22 +17,38 @@ import AddFriendModal from '../components/AddFriendModal';
 import FriendInvitationModal from '../components/FriendInvitationModal';
 
 const HomePage = () => {
-  const { chatRequest, contacts, friendRequests, sendFriendInvitation, respondToFriendInvitation } = useContext(ChatContext);
+  const { activeChatId, chatRequest, contacts, friendRequests, sendFriendInvitation, respondToFriendInvitation, setActiveChatId } = useContext(ChatContext);
   const [openChatIds, setOpenChatIds] = React.useState([]);
+  const [minimizedChatIds, setMinimizedChatIds] = React.useState([]);
   const [showAddFriend, setShowAddFriend] = React.useState(false);
+  const [showFriendMenu, setShowFriendMenu] = React.useState(false);
   const [activeInvitation, setActiveInvitation] = React.useState(null);
-  const focusChat = (contactId) => setOpenChatIds((currentIds) => {
-    if (currentIds[currentIds.length - 1] === contactId) return currentIds;
-    return currentIds.includes(contactId) ? [...currentIds.filter((id) => id !== contactId), contactId] : [...currentIds, contactId];
-  });
+  const friendMenuRef = React.useRef(null);
+  const incomingRequests = friendRequests.filter((request) => request.direction !== 'outgoing');
+  const focusChat = (contactId) => {
+    setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
+    setOpenChatIds((currentIds) => {
+      if (currentIds[currentIds.length - 1] === contactId) return currentIds;
+      return currentIds.includes(contactId) ? [...currentIds.filter((id) => id !== contactId), contactId] : [...currentIds, contactId];
+    });
+  };
+  const minimizeChat = (contactId, conversationId) => {
+    setMinimizedChatIds((currentIds) => currentIds.includes(contactId) ? currentIds : [...currentIds, contactId]);
+    if (conversationId === activeChatId) setActiveChatId(null);
+  };
 
   React.useEffect(() => {
-    const incomingInvitation = friendRequests.find((request) => request.direction !== 'outgoing');
-    if (!activeInvitation && incomingInvitation) setActiveInvitation(incomingInvitation);
-  }, [friendRequests, activeInvitation]);
+    const closeFriendMenu = (event) => {
+      if (friendMenuRef.current && !friendMenuRef.current.contains(event.target)) setShowFriendMenu(false);
+    };
+    document.addEventListener('mousedown', closeFriendMenu);
+    return () => document.removeEventListener('mousedown', closeFriendMenu);
+  }, []);
 
   React.useEffect(() => {
-    if (chatRequest) setOpenChatIds((currentIds) => currentIds.includes(chatRequest.id)
+    if (!chatRequest) return;
+    setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== chatRequest.id));
+    setOpenChatIds((currentIds) => currentIds.includes(chatRequest.id)
       ? [...currentIds.filter((id) => id !== chatRequest.id), chatRequest.id]
       : [...currentIds, chatRequest.id]);
   }, [chatRequest]);
@@ -47,8 +63,10 @@ const HomePage = () => {
 
   const openChat = (contact) => focusChat(contact.id);
 
-  const closeChat = (contactId) => {
+  const closeChat = (contactId, conversationId) => {
     setOpenChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
+    setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
+    if (conversationId === activeChatId) setActiveChatId(null);
   };
 
   return (
@@ -83,17 +101,29 @@ const HomePage = () => {
             {/* Searchbar and icons */}
             <div className="flex items-center mt-2 px-4">
               <SearchBar initialValue="Search contacts or the web..." />
-              <div
-                className="add-friend-button flex items-center gap-1 p-1 ml-1 h-6 cursor-pointer outline-none"
-                aria-label="Add a friend"
-                onClick={() => setShowAddFriend(true)}
-              >
-                <div className="w-5">
-                  <img src={addcontact} alt="" />
-                </div>
-                <div>
-                  <img src={arrow} alt="" />
-                </div>
+              <div className="relative ml-1" ref={friendMenuRef}>
+                <button
+                  type="button"
+                  className="add-friend-button flex h-6 cursor-pointer items-center gap-1 p-1 outline-none"
+                  aria-label="Add a friend"
+                  aria-haspopup="menu"
+                  aria-expanded={showFriendMenu}
+                  onClick={() => setShowFriendMenu((isOpen) => !isOpen)}
+                >
+                  <span className="w-5"><img src={addcontact} alt="" /></span>
+                  <span><img src={arrow} alt="" /></span>
+                </button>
+                {showFriendMenu && (
+                  <div role="menu" className="absolute left-0 top-full z-30 mt-1 w-56 rounded border border-[#7894a5] bg-gradient-to-b from-white via-[#f7fbfd] to-[#e3edf3] p-1 shadow-lg">
+                    <button type="button" role="menuitem" className="aerobutton w-full px-2 py-1 text-left text-[12px] text-[#17364a]" onClick={() => { setShowFriendMenu(false); setShowAddFriend(true); }}>
+                      Add a friend...
+                    </button>
+                    <button type="button" role="menuitem" disabled={!incomingRequests.length} className="aerobutton flex w-full items-center justify-between px-2 py-1 text-left text-[12px] text-[#17364a] disabled:cursor-default disabled:opacity-50" onClick={() => { setShowFriendMenu(false); setActiveInvitation(incomingRequests[0] || null); }}>
+                      <span>Review friend invitations</span>
+                      {incomingRequests.length > 0 && <span className="ml-2 rounded bg-[#1d2f7f] px-1.5 text-white">{incomingRequests.length}</span>}
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex gap-1 items-center aerobutton p-1 h-6">
                 <div className="w-5">
@@ -139,11 +169,27 @@ const HomePage = () => {
           <ChatWindow
             key={contactId}
             contactId={contactId}
-            onClose={() => closeChat(contactId)}
+            isMinimized={minimizedChatIds.includes(contactId)}
+            onClose={(conversationId) => closeChat(contactId, conversationId)}
             onFocus={() => focusChat(contactId)}
+            onMinimize={(conversationId) => minimizeChat(contactId, conversationId)}
             windowIndex={index}
           />
         ))}
+        {minimizedChatIds.length > 0 && (
+          <div className="pointer-events-auto fixed bottom-3 left-3 z-[900] flex max-w-[calc(100vw-24px)] gap-1 overflow-x-auto rounded-md border border-[#7894a5] bg-gradient-to-b from-white via-[#eaf3f8] to-[#cddfe9] p-1 shadow-[0_4px_14px_rgba(0,0,0,0.35)]">
+            {minimizedChatIds.map((contactId) => {
+              const contact = contacts.find((item) => item.id === Number(contactId));
+              if (!contact) return null;
+              return (
+                <button key={contactId} type="button" className="chat-taskbar-button flex h-8 max-w-48 min-w-36 items-center gap-2 rounded px-2 text-left text-[12px] text-[#17364a]" onClick={() => focusChat(contactId)} title={contact.name || contact.username}>
+                  <img src={contact.image || '/assets/usertiles/default.png'} alt="" className="h-5 w-5 shrink-0 rounded-sm object-cover" />
+                  <span className="truncate">{contact.name || contact.username}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );

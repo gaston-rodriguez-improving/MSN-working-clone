@@ -24,7 +24,7 @@ import chatPointBackground from '/assets/background/chat_background_point.png';
 import chatIconsSeparator from '/assets/background/chat_icons_separator.png';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 
-export const ChatWindow = ({ contactId, onClose, onFocus, windowIndex = 0 }) => {
+export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimized = false, windowIndex = 0 }) => {
   const { id: routeId } = useParams();
   const id = contactId ?? routeId;
   const [shaking, setShaking] = useState(false);
@@ -41,7 +41,12 @@ export const ChatWindow = ({ contactId, onClose, onFocus, windowIndex = 0 }) => 
   const nudgeTimeoutRef = useRef(null);
   const [windowBounds, setWindowBounds] = useState(null);
   const navigate = useNavigate();
-  const closeWindow = onClose || (() => navigate('/'));
+  const closeWindow = () => {
+    if (conversationId === activeChatId) setActiveChatId(null);
+    if (onClose) onClose(conversationId);
+    else navigate('/');
+  };
+  const minimizeWindow = () => onMinimize?.(conversationId);
   const focusWindow = () => {
     if (conversationId) setActiveChatId(conversationId);
     onFocus?.();
@@ -54,6 +59,9 @@ export const ChatWindow = ({ contactId, onClose, onFocus, windowIndex = 0 }) => 
     if (id) openConversation(id).then(result => { if (!cancelled && result) { setConversationId(result.chatId); setActiveChatId(result.chatId); } });
     return () => { cancelled = true; };
   }, [id, openConversation, setActiveChatId]);
+  useEffect(() => {
+    if (!isMinimized && conversationId) setActiveChatId(conversationId);
+  }, [isMinimized, conversationId, setActiveChatId]);
   useEffect(() => {
     if (!conversationId) return undefined;
     return subscribeToMessageEffects(conversationId, (message) => {
@@ -193,7 +201,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, windowIndex = 0 }) => 
     <div
       ref={windowRef}
       onPointerDown={focusWindow}
-      className={`msn-font chat-window pointer-events-auto fixed w-[min(720px,calc(100vw-24px))] h-[min(680px,calc(100vh-24px))] overflow-hidden rounded-lg border border-[#55758c] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] bg-no-repeat bg-[length:100%_100px] ${shaking ? 'nudge' : ''}`}
+      className={`msn-font chat-window pointer-events-auto fixed w-[min(720px,calc(100vw-24px))] h-[min(680px,calc(100vh-24px))] overflow-hidden rounded-lg border border-[#55758c] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] bg-no-repeat bg-[length:100%_100px] ${shaking ? 'nudge' : ''} ${isMinimized ? 'hidden' : ''}`}
       style={{
         backgroundImage: `url(${bg})`,
         ...(windowBounds
@@ -225,15 +233,29 @@ export const ChatWindow = ({ contactId, onClose, onFocus, windowIndex = 0 }) => 
           <img src={contactChatIcon} alt="" />
           <p className="flex gap-1" dangerouslySetInnerHTML={{ __html: replaceEmoticons(contact.name) }}></p>
           <p>&lt;{contact.email}&gt;</p>
-          <button
-            type="button"
-            className="ml-auto flex h-5 w-7 items-center justify-center rounded-sm border border-transparent text-sm leading-none text-[#17364a] hover:border-[#b3261e] hover:bg-[#e81123] hover:text-white active:bg-[#b40000]"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={closeWindow}
-            aria-label={`Close chat with ${contact.name}`}
-          >
-            ×
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            {onMinimize && (
+              <button
+                type="button"
+                className="msn-window-control flex h-5 w-7 items-center justify-center rounded-sm text-[#17364a]"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={minimizeWindow}
+                aria-label={`Minimize chat with ${contact.name}`}
+                title="Minimize"
+              >
+                <span className="mt-1.5 h-[2px] w-2.5 bg-current" />
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex h-5 w-7 items-center justify-center rounded-sm border border-transparent text-sm leading-none text-[#17364a] hover:border-[#b3261e] hover:bg-[#e81123] hover:text-white active:bg-[#b40000]"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={closeWindow}
+              aria-label={`Close chat with ${contact.name}`}
+            >
+              ×
+            </button>
+          </div>
         </div>
         <div
           className="hidden flex items-center justify-between h-[31.4px] bg-no-repeat shadow-lg"
