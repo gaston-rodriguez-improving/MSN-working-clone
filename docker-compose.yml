@@ -25,6 +25,7 @@ services:
       args:
         VITE_AZURE_AD_TENANT_ID: ${VITE_AZURE_AD_TENANT_ID:-}
         VITE_AZURE_AD_CLIENT_ID: ${VITE_AZURE_AD_CLIENT_ID:-}
+        VITE_AZURE_AD_REDIRECT_URI: ${VITE_AZURE_AD_REDIRECT_URI:-}
     depends_on:
       api:
         condition: service_healthy
