@@ -5,6 +5,9 @@ services:
       - ./server/.env
     environment:
       PORT: "3001"
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/rds-global-bundle.pem
+    volumes:
+      - ./rds-global-bundle.pem:/etc/ssl/certs/rds-global-bundle.pem:ro
     expose:
       - "3001"
     healthcheck:
