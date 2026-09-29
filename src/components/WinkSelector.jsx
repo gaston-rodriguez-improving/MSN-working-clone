@@ -4,7 +4,7 @@ import selectWink from '/assets/chat/select_wink.png';
 import { winks, winks_icons } from '../imports/winks';
 import Ruffle from '../helpers/ruffle'; // Import ruffle
 
-const WinkSelector = () => {
+const WinkSelector = ({ onWinkSend, receivedWink }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [recentWinks, setRecentWinks] = useState([]);
   const dropdownRef = useRef(null);
@@ -32,7 +32,12 @@ const WinkSelector = () => {
     localStorage.setItem('recentWinks', JSON.stringify(recentWinks));
   }, [recentWinks]);
 
-  const handleWinkClick = (alias) => {
+  useEffect(() => {
+    const wink = winks[receivedWink?.content];
+    if (wink) ruffleRef.current?.play(wink.path, wink.duration);
+  }, [receivedWink]);
+
+  const handleWinkClick = async (alias) => {
     setIsOpen(false);
 
     // Update recent winks
@@ -44,6 +49,11 @@ const WinkSelector = () => {
     const wink = winks[alias];
     if (ruffleRef.current && wink) {
       ruffleRef.current.play(wink.path, wink.duration);
+    }
+    try {
+      await onWinkSend?.(alias);
+    } catch (error) {
+      console.error('Failed to send wink:', error);
     }
   };
 

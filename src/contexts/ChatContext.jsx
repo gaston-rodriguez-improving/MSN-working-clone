@@ -19,6 +19,18 @@ export function ChatProvider({ children }) {
   const contactsRef = useRef([]);
   const activeRef = useRef(null);
   const messageIds = useRef(new Set());
+  const messageEffectListeners = useRef(new Map());
+
+  const subscribeToMessageEffects = useCallback((chatId, listener) => {
+    const key = Number(chatId);
+    const listeners = messageEffectListeners.current.get(key) || new Set();
+    listeners.add(listener);
+    messageEffectListeners.current.set(key, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (!listeners.size) messageEffectListeners.current.delete(key);
+    };
+  }, []);
 
   useEffect(() => { contactsRef.current = contacts; }, [contacts]);
   const requestsRef = useRef([]);
@@ -61,6 +73,9 @@ export function ChatProvider({ children }) {
       try {
         const { type, payload } = JSON.parse(event.data);
         if (type === 'message' && appendMessage(payload)) {
+          if (payload.drawAttention || payload.winks) {
+            messageEffectListeners.current.get(Number(payload.chatId))?.forEach((listener) => listener(payload));
+          }
           const notify = (sender) => { if (sender && payload.chatId !== activeRef.current && !payload.drawAttention && !payload.winks) showNotification({ title: sender.username, text: payload.content, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) }); };
           const sender = contactsRef.current.find((contact) => contact.id === payload.senderId);
           if (sender) notify(sender);
@@ -76,7 +91,7 @@ export function ChatProvider({ children }) {
           if (payload.status === 'accepted') setContacts((prev) => prev.some((c) => c.id === payload.user.id) ? prev : [...prev, toContact(payload.user)]);
           showNotification({ title: payload.user.username, text: payload.status === 'accepted' ? 'accepted your friend invitation.' : 'declined your friend invitation.', avatar: payload.user.avatar });
         }
-        if (type === 'user_status_update' || type === 'user_bio_update' || type === 'user_avatar_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, message: payload.bio || contact.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
+        if (type === 'user_status_update' || type === 'user_bio_update' || type === 'user_avatar_update' || type === 'user_username_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, name: payload.username || contact.name, message: payload.bio || contact.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
       } catch {
         return;
       }
@@ -108,5 +123,5 @@ export function ChatProvider({ children }) {
   }, []);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, messages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, messages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
 }

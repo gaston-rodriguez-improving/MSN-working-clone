@@ -23,4 +23,5 @@ export const getAllMessages = () => api.get('/messages/chats');
 export const sendMessage = (data) => api.post('/messages', data);
 export const resetUnread = (chatId) => api.post('/unread-messages/reset', { chatId });
 export const updateBio = (bio) => api.patch('/users/bio', { bio });
+export const updateUsername = (username) => api.patch('/users/username', { username });
 export const updateAvatar = (avatar) => api.patch('/users/avatar', { avatar });

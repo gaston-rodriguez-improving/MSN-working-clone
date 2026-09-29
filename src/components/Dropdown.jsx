@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import arrow from '/assets/general/arrow.png';
 import ChangeDisplayPictureModal from './ChangeDisplayPictureModal';
 import OptionsModal from './OptionsModal';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import ChangeSceneModal from '../components/ChangeSceneModal';
+import { AuthContext } from '../contexts/AuthContext';
 
 const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName = true, value }) => {
   const [user, setUser] = useState({
@@ -18,6 +19,8 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
       JSON.parse(localStorage.getItem('messenger_user') || 'null')?.username ||
       '',
   });
+  const { user: account } = useContext(AuthContext);
+  const displayName = account?.username || user.name || user.email;
 
   const [changePictureShowModal, setShowChangePictureModal] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
@@ -84,11 +87,8 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
             <img src={selectedOption.image} alt={selectedOption.label} className="inline-block mt-0.5 mr-1 w-2" />
           )}
 
-          {showUserName && (user.name || user.email) && (
-            <p
-              className="text-[20px] my-[-5px] glow"
-              dangerouslySetInnerHTML={{ __html: replaceEmoticons(user.name || user.email) }}
-            />
+          {showUserName && displayName && (
+            <p className="text-[20px] my-[-5px] glow" dangerouslySetInnerHTML={{ __html: replaceEmoticons(displayName) }} />
           )}
 
           <p className="glow">({selectedOption.label})</p>

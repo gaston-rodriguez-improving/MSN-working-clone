@@ -27,15 +27,17 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
   const { id: routeId } = useParams();
   const id = contactId ?? routeId;
   const [shaking, setShaking] = useState(false);
+  const [receivedWink, setReceivedWink] = useState(null);
   const [input, setInput] = useState('');
   const [lastMessageTime, setLastMessageTime] = useState(null);
   const user = JSON.parse(localStorage.getItem('messenger_user') || 'null');
   const { selectedEmoticon, setSelectedEmoticon } = useContext(EmoticonContext);
-  const { contacts, messages: conversations, openConversation, setActiveChatId, send } = useContext(ChatContext);
+  const { contacts, messages: conversations, openConversation, setActiveChatId, subscribeToMessageEffects, send } = useContext(ChatContext);
   const [conversationId, setConversationId] = useState(null);
   const messageContainerRef = useRef(null);
   const windowRef = useRef(null);
   const interactionRef = useRef(null);
+  const nudgeTimeoutRef = useRef(null);
   const [windowBounds, setWindowBounds] = useState(null);
   const navigate = useNavigate();
   const closeWindow = onClose || (() => navigate('/'));
@@ -47,6 +49,21 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
     if (id) openConversation(id).then(result => { if (!cancelled && result) { setConversationId(result.chatId); setActiveChatId(result.chatId); } });
     return () => { cancelled = true; };
   }, [id, openConversation, setActiveChatId]);
+  useEffect(() => {
+    if (!conversationId) return undefined;
+    return subscribeToMessageEffects(conversationId, (message) => {
+      if (message.senderId === user?.id) return;
+      if (message.drawAttention) {
+        setShaking(true);
+        if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
+        const audio = new Audio(sounds.nudge);
+        audio.play().catch(() => {});
+        nudgeTimeoutRef.current = setTimeout(() => setShaking(false), 500);
+      }
+      if (message.winks) setReceivedWink(message);
+    });
+  }, [conversationId, subscribeToMessageEffects, user?.id]);
+  useEffect(() => () => clearTimeout(nudgeTimeoutRef.current), []);
   useEffect(() => { if (selectedEmoticon) { setInput(prev => prev + selectedEmoticon); setSelectedEmoticon(null); } }, [selectedEmoticon, setSelectedEmoticon]);
   useEffect(() => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; }, [messages]);
   const scrollToBottom = () => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; };
@@ -78,8 +95,14 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
     const audio = new Audio(sounds.nudge);
     audio.play().catch(() => {});
     setShaking(true);
+    if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
+    nudgeTimeoutRef.current = setTimeout(() => setShaking(false), 500);
     await send(conversationId, nudgeMessage, { drawAttention: true });
-    setTimeout(() => setShaking(false), 500);
+  };
+
+  const handleWinkSend = async (alias) => {
+    if (!conversationId) return;
+    await send(conversationId, alias, { winks: true });
   };
 
   const stopWindowInteraction = () => {
@@ -255,10 +278,11 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
                 <div ref={messageContainerRef} className="min-h-0 flex-1 overflow-y-auto break-all has-scrollbar">
                   {messages.map((message, index) => {
                     const previousMessage = messages[index - 1];
+                    const isNudge = message.drawAttention || message.content === nudgeMessage;
 
                     return (
                       <div key={index} className={`message ${message.role}`}>
-                        {message.content === nudgeMessage && (
+                        {isNudge && (
                           <div>
                             {previousMessage && previousMessage.content === nudgeMessage ? (
                               <>
@@ -275,7 +299,7 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
                           </div>
                         )}
 
-                        {message.senderId === user?.id && message.content !== nudgeMessage && (
+                        {message.senderId === user?.id && !isNudge && !message.winks && (
                           <div>
                             <div className="flex text-black text-opacity-70">
                               <p
@@ -302,7 +326,7 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
                           </div>
                         )}
 
-                        {message.senderId !== user?.id && message.content !== nudgeMessage && (
+                        {message.senderId !== user?.id && !isNudge && !message.winks && (
                           <div>
                             <div className="flex text-black text-opacity-70">
                               <p
@@ -353,7 +377,7 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
                   >
                     {EmoticonSelector()}
 
-                    {WinkSelector()}
+                    <WinkSelector onWinkSend={handleWinkSend} receivedWink={receivedWink} />
 
                     <div className="flex items-center aerobutton p-1 h-6" onClick={handleNudgeClick}>
                       <div>

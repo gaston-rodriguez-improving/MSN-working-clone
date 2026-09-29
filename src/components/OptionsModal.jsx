@@ -1,24 +1,23 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import '7.css/dist/7.scoped.css';
 import line from '/assets/general/subtitles_line_options.png';
 import defaultAvatar from '/assets/usertiles/default.png';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
+import { AuthContext } from '../contexts/AuthContext';
 
 const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
+  const { user: account, updateUsername } = useContext(AuthContext);
   const [user, setUser] = useState({
     message: localStorage.getItem('message'),
     email: localStorage.getItem('email'),
-    name: localStorage.getItem('name'),
-  });
-
-  const [initialState, setInitialState] = useState({
-    message: user.message,
-    name: user.name,
+    name: localStorage.getItem('name') || account?.username || '',
   });
 
   const [message, setMessage] = useState(user.message);
   const [name, setName] = useState(user.name);
   const [isModified, setIsModified] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const usernameChanged = name.trim() !== account?.username;
 
   const handleMessageChange = (e) => {
     setMessage(e.target.value);
@@ -30,17 +29,33 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
     setIsModified(true);
   };
 
-  const handleApplyChanges = () => {
-    if (isModified) {
+  const handleApplyChanges = async () => {
+    const normalizedName = name.trim();
+    if (!isModified && !usernameChanged) return true;
+    if (!normalizedName) {
+      setSaveError('Display name cannot be empty.');
+      return false;
+    }
+
+    try {
+      if (usernameChanged) await updateUsername(normalizedName);
       // Update localStorage with new values
       localStorage.setItem('message', message);
-      localStorage.setItem('name', name);
+      localStorage.setItem('name', normalizedName);
+      setUser({ ...user, message, name: normalizedName });
+      setName(normalizedName);
       setIsModified(false);
+      setSaveError('');
+      return true;
+    } catch (error) {
+      setSaveError(error.response?.data?.error || 'Unable to save your display name. Please try again.');
+      return false;
     }
   };
 
-  const handleOk = () => {
-    handleApplyChanges(); // Save changes before closing modal
+  const handleOk = async () => {
+    // Save changes before closing modal
+    if (!(await handleApplyChanges())) return;
     setShowOptionsModal(false); // Close modal
     window.location.reload();
   };
@@ -106,6 +121,7 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
                         onChange={handleMessageChange}
                       />
                     </div>
+                    {saveError && <p className="ml-12 mt-2 text-red-700">{saveError}</p>}
                   </div>
                 </fieldset>
               </div>
@@ -119,7 +135,7 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
               <button type="button" onClick={handleCloseModal}>
                 Cancel
               </button>
-              <button type="button" onClick={handleApplyChanges} disabled={!isModified}>
+              <button type="button" onClick={handleApplyChanges} disabled={!isModified && !usernameChanged}>
                 Apply
               </button>
               <button type="button">Help</button>
