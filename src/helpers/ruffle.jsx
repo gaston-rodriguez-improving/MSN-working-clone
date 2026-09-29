@@ -1,56 +1,64 @@
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 
+let ruffleLoadPromise;
+
+const loadRuffle = () => {
+  if (window.RufflePlayer) return Promise.resolve(window.RufflePlayer.newest());
+  if (!ruffleLoadPromise) {
+    ruffleLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@ruffle-rs/ruffle';
+      script.async = true;
+      script.onload = () => {
+        const instance = window.RufflePlayer?.newest();
+        if (instance) resolve(instance);
+        else reject(new Error('RufflePlayer failed to initialize'));
+      };
+      script.onerror = () => reject(new Error('RufflePlayer failed to load'));
+      document.body.appendChild(script);
+    }).catch((error) => {
+      ruffleLoadPromise = null;
+      throw error;
+    });
+  }
+  return ruffleLoadPromise;
+};
+
 const Ruffle = forwardRef((_, ref) => {
   const containerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const timeoutRef = useRef(null);
+  const playRequestRef = useRef(0);
 
-  useEffect(() => {
-    if (!document.querySelector('script[src="https://unpkg.com/@ruffle-rs/ruffle"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/@ruffle-rs/ruffle';
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
+  const playSWF = async (path, duration) => {
+    const requestId = ++playRequestRef.current;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-  const playSWF = (path, duration) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    const ruffleInstance = window.RufflePlayer?.newest();
-    if (!ruffleInstance) {
-      console.error('RufflePlayer non disponible !');
-      return;
-    }
-
-    if (containerRef.current) {
+    try {
+      const ruffleInstance = await loadRuffle();
+      if (requestId !== playRequestRef.current || !containerRef.current) return;
       containerRef.current.innerHTML = '';
-    }
 
-    const player = ruffleInstance.createPlayer();
-    player.config = {
-      autoplay: true,
-      quality: 'high',
-      wmode: 'transparent',
-      splashScreen: false,
-    };
-
-    player.style.width = '900px';
-    player.style.height = '700px';
-
-    if (containerRef.current) {
+      const player = ruffleInstance.createPlayer();
+      player.config = {
+        autoplay: true,
+        quality: 'high',
+        wmode: 'transparent',
+        splashScreen: false,
+      };
+      player.style.width = '900px';
+      player.style.height = '700px';
       containerRef.current.appendChild(player);
       player.load(path);
-
       timeoutRef.current = setTimeout(() => {
+        if (requestId !== playRequestRef.current || !containerRef.current) return;
         containerRef.current.innerHTML = '';
         setIsPlaying(false);
       }, duration * 1000);
+      setIsPlaying(true);
+    } catch (error) {
+      console.error('Failed to play wink:', error.message);
     }
-
-    setIsPlaying(true);
   };
 
   useImperativeHandle(ref, () => ({

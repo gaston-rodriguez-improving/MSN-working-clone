@@ -21,6 +21,10 @@ const HomePage = () => {
   const [openChatIds, setOpenChatIds] = React.useState([]);
   const [showAddFriend, setShowAddFriend] = React.useState(false);
   const [activeInvitation, setActiveInvitation] = React.useState(null);
+  const focusChat = (contactId) => setOpenChatIds((currentIds) => {
+    if (currentIds[currentIds.length - 1] === contactId) return currentIds;
+    return currentIds.includes(contactId) ? [...currentIds.filter((id) => id !== contactId), contactId] : [...currentIds, contactId];
+  });
 
   React.useEffect(() => {
     const incomingInvitation = friendRequests.find((request) => request.direction !== 'outgoing');
@@ -28,7 +32,9 @@ const HomePage = () => {
   }, [friendRequests, activeInvitation]);
 
   React.useEffect(() => {
-    if (chatRequest) setOpenChatIds((currentIds) => (currentIds.includes(chatRequest.id) ? currentIds : [...currentIds, chatRequest.id]));
+    if (chatRequest) setOpenChatIds((currentIds) => currentIds.includes(chatRequest.id)
+      ? [...currentIds.filter((id) => id !== chatRequest.id), chatRequest.id]
+      : [...currentIds, chatRequest.id]);
   }, [chatRequest]);
 
   // Filtrage des contacts par statut
@@ -39,9 +45,7 @@ const HomePage = () => {
 
   const background = localStorage.getItem('scene');
 
-  const openChat = (contact) => {
-    setOpenChatIds((currentIds) => (currentIds.includes(contact.id) ? currentIds : [...currentIds, contact.id]));
-  };
+  const openChat = (contact) => focusChat(contact.id);
 
   const closeChat = (contactId) => {
     setOpenChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
@@ -136,6 +140,7 @@ const HomePage = () => {
             key={contactId}
             contactId={contactId}
             onClose={() => closeChat(contactId)}
+            onFocus={() => focusChat(contactId)}
             windowIndex={index}
           />
         ))}

@@ -76,7 +76,11 @@ export function ChatProvider({ children }) {
           if (payload.drawAttention || payload.winks) {
             messageEffectListeners.current.get(Number(payload.chatId))?.forEach((listener) => listener(payload));
           }
-          const notify = (sender) => { if (sender && payload.chatId !== activeRef.current && !payload.drawAttention && !payload.winks) showNotification({ title: sender.username, text: payload.content, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) }); };
+          const notify = (sender) => {
+            if (!sender || payload.chatId === activeRef.current) return;
+            const text = payload.drawAttention ? 'sent you a nudge.' : payload.winks ? 'sent you a wink.' : payload.content;
+            showNotification({ title: sender.username, text, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) });
+          };
           const sender = contactsRef.current.find((contact) => contact.id === payload.senderId);
           if (sender) notify(sender);
           else getFriends().then(({ data }) => { const list = data.users || []; const found = list.find((contact) => contact.id === payload.senderId); setContacts((prev) => { const known = new Set(prev.map((c) => c.id)); return [...prev, ...list.filter((c) => !known.has(c.id)).map((c) => ({ ...c, name: c.username, message: c.bio || '', image: c.avatar === 'default' ? '/assets/usertiles/default.png' : c.avatar }))]; }); notify(found); }).catch(() => {});

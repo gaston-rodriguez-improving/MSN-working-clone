@@ -6,6 +6,7 @@ import { ChatContext } from '../contexts/ChatContext';
 import sounds from '../imports/sounds';
 import EmoticonSelector from '../components/EmoticonSelector';
 import WinkSelector from '../components/WinkSelector';
+import { winks_icons } from '../imports/winks';
 import EmoticonContext from '../contexts/EmoticonContext';
 import navbarBackground from '/assets/background/chat_navbar_background.png';
 import contactChatIcon from '/assets/chat/contact_chat_icon.png';
@@ -23,7 +24,7 @@ import chatPointBackground from '/assets/background/chat_background_point.png';
 import chatIconsSeparator from '/assets/background/chat_icons_separator.png';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 
-export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
+export const ChatWindow = ({ contactId, onClose, onFocus, windowIndex = 0 }) => {
   const { id: routeId } = useParams();
   const id = contactId ?? routeId;
   const [shaking, setShaking] = useState(false);
@@ -32,7 +33,7 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
   const [lastMessageTime, setLastMessageTime] = useState(null);
   const user = JSON.parse(localStorage.getItem('messenger_user') || 'null');
   const { selectedEmoticon, setSelectedEmoticon } = useContext(EmoticonContext);
-  const { contacts, messages: conversations, openConversation, setActiveChatId, subscribeToMessageEffects, send } = useContext(ChatContext);
+  const { activeChatId, contacts, messages: conversations, openConversation, setActiveChatId, subscribeToMessageEffects, send } = useContext(ChatContext);
   const [conversationId, setConversationId] = useState(null);
   const messageContainerRef = useRef(null);
   const windowRef = useRef(null);
@@ -41,6 +42,10 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
   const [windowBounds, setWindowBounds] = useState(null);
   const navigate = useNavigate();
   const closeWindow = onClose || (() => navigate('/'));
+  const focusWindow = () => {
+    if (conversationId) setActiveChatId(conversationId);
+    onFocus?.();
+  };
   const contact = contacts.find((item) => item.id === Number(id));
   const messages = conversationId ? conversations[conversationId] || [] : [];
 
@@ -64,7 +69,7 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
     });
   }, [conversationId, subscribeToMessageEffects, user?.id]);
   useEffect(() => () => clearTimeout(nudgeTimeoutRef.current), []);
-  useEffect(() => { if (selectedEmoticon) { setInput(prev => prev + selectedEmoticon); setSelectedEmoticon(null); } }, [selectedEmoticon, setSelectedEmoticon]);
+  useEffect(() => { if (selectedEmoticon && conversationId && conversationId === activeChatId) { setInput(prev => prev + selectedEmoticon); setSelectedEmoticon(null); } }, [selectedEmoticon, conversationId, activeChatId, setSelectedEmoticon]);
   useEffect(() => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; }, [messages]);
   const scrollToBottom = () => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; };
   const handleSubmit = async (e) => { e.preventDefault(); if (!input.trim() || !conversationId) return; const content = input.trim(); setInput(''); await send(conversationId, content); scrollToBottom(); };
@@ -187,6 +192,7 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
   return (
     <div
       ref={windowRef}
+      onPointerDown={focusWindow}
       className={`msn-font chat-window pointer-events-auto fixed w-[min(720px,calc(100vw-24px))] h-[min(680px,calc(100vh-24px))] overflow-hidden rounded-lg border border-[#55758c] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] bg-no-repeat bg-[length:100%_100px] ${shaking ? 'nudge' : ''}`}
       style={{
         backgroundImage: `url(${bg})`,
@@ -279,23 +285,23 @@ export const ChatWindow = ({ contactId, onClose, windowIndex = 0 }) => {
                   {messages.map((message, index) => {
                     const previousMessage = messages[index - 1];
                     const isNudge = message.drawAttention || message.content === nudgeMessage;
+                    const previousIsNudge = previousMessage?.drawAttention || previousMessage?.content === nudgeMessage;
+                    const nudgeText = message.senderId === user?.id ? nudgeMessage : `${contact.name} has sent you a nudge.`;
+                    const winkIcon = winks_icons[`${message.content}_icon`];
 
                     return (
                       <div key={index} className={`message ${message.role}`}>
                         {isNudge && (
                           <div>
-                            {previousMessage && previousMessage.content === nudgeMessage ? (
-                              <>
-                                <p className="ml-1">{nudgeMessage}</p>
-                                <p>━━━━</p>
-                              </>
-                            ) : (
-                              <>
-                                <p>━━━━</p>
-                                <p className="ml-1">{nudgeMessage}</p>
-                                <p>━━━━</p>
-                              </>
-                            )}
+                            {!previousIsNudge && <p>━━━━</p>}
+                            <p className="ml-1">{nudgeText}</p>
+                            <p>━━━━</p>
+                          </div>
+                        )}
+                        {message.winks && (
+                          <div className="ml-1 flex items-center gap-2">
+                            {winkIcon && <img src={winkIcon} alt={message.content} className="h-8 w-8 object-contain" />}
+                            <p>{message.senderId === user?.id ? 'You sent a wink.' : `${contact.name} sent you a wink.`}</p>
                           </div>
                         )}
 
