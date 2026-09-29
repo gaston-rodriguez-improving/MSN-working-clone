@@ -248,7 +248,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
             )}
             <button
               type="button"
-              className="flex h-5 w-7 items-center justify-center rounded-sm border border-transparent text-sm leading-none text-[#17364a] hover:border-[#b3261e] hover:bg-[#e81123] hover:text-white active:bg-[#b40000]"
+              className="msn-window-close flex h-5 w-7 items-center justify-center text-sm font-bold leading-none"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={closeWindow}
               aria-label={`Close chat with ${contact.name}`}
