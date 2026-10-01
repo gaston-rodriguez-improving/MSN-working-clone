@@ -35,9 +35,11 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   const [lastMessageTime, setLastMessageTime] = useState(null);
   const user = JSON.parse(localStorage.getItem('messenger_user') || 'null');
   const { selectedEmoticon, setSelectedEmoticon } = useContext(EmoticonContext);
-  const { activeChatId, contacts, messages: conversations, openConversation, setActiveChatId, subscribeToMessageEffects, send } = useContext(ChatContext);
+  const { activeChatId, contacts, messages: conversations, hasMoreMessages, loadMessages, openConversation, setActiveChatId, subscribeToMessageEffects, send } = useContext(ChatContext);
   const [conversationId, setConversationId] = useState(null);
   const messageContainerRef = useRef(null);
+  const olderScrollAnchorRef = useRef(null);
+  const loadingOlderRef = useRef(false);
   const windowRef = useRef(null);
   const interactionRef = useRef(null);
   const nudgeTimeoutRef = useRef(null);
@@ -62,6 +64,9 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
     return () => { cancelled = true; };
   }, [id, openConversation, setActiveChatId]);
   useEffect(() => {
+    if (conversationId) loadMessages(conversationId).catch(() => {});
+  }, [conversationId, loadMessages]);
+  useEffect(() => {
     if (!isMinimized && conversationId) setActiveChatId(conversationId);
   }, [isMinimized, conversationId, setActiveChatId]);
   useEffect(() => {
@@ -83,6 +88,12 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   useEffect(() => {
     const container = messageContainerRef.current;
     if (!container || isMinimized) return undefined;
+    if (olderScrollAnchorRef.current) {
+      const { scrollHeight, scrollTop } = olderScrollAnchorRef.current;
+      container.scrollTop = scrollTop + container.scrollHeight - scrollHeight;
+      olderScrollAnchorRef.current = null;
+      return undefined;
+    }
     const scrollToLatest = () => { container.scrollTop = container.scrollHeight; };
     scrollToLatest();
     const frame = requestAnimationFrame(scrollToLatest);
@@ -90,6 +101,20 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
     container.querySelectorAll('.message').forEach((message) => observer?.observe(message));
     return () => { cancelAnimationFrame(frame); observer?.disconnect(); };
   }, [messages, isMinimized]);
+  const handleMessageScroll = async () => {
+    const container = messageContainerRef.current;
+    if (!container || container.scrollTop > 32 || loadingOlderRef.current || !hasMoreMessages[conversationId] || !messages.length) return;
+    loadingOlderRef.current = true;
+    olderScrollAnchorRef.current = { scrollHeight: container.scrollHeight, scrollTop: container.scrollTop };
+    try {
+      const count = await loadMessages(conversationId, messages[0].id);
+      if (!count) olderScrollAnchorRef.current = null;
+    } catch {
+      olderScrollAnchorRef.current = null;
+    } finally {
+      loadingOlderRef.current = false;
+    }
+  };
   const scrollToBottom = () => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; };
   const handleSubmit = async (e) => { e.preventDefault(); if (!input.trim() || !conversationId) return; const content = input.trim(); setInput(''); await send(conversationId, content); scrollToBottom(); };
 
@@ -314,7 +339,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
               <img src={divider} alt="" className="mb-[-5px] pointer-events-none" />
 
               <div className="flex min-h-0 flex-1 flex-col justify-between w-full my-4 text-sm pr-2">
-                <div ref={messageContainerRef} className="min-h-0 flex-1 overflow-y-auto break-all has-scrollbar">
+                <div ref={messageContainerRef} onScroll={handleMessageScroll} className="min-h-0 flex-1 overflow-y-auto break-all has-scrollbar">
                   {messages.map((message, index) => {
                     const previousMessage = messages[index - 1];
                     const isNudge = message.drawAttention || message.content === nudgeMessage;
@@ -323,7 +348,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                     const winkIcon = winks_icons[`${message.content}_icon`];
 
                     return (
-                      <div key={index} className={`message ${message.role}`}>
+                      <div key={message.id} className={`message ${message.role}`}>
                         {isNudge && (
                           <div>
                             {!previousIsNudge && <p>━━━━</p>}

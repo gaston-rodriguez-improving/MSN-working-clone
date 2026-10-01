@@ -118,10 +118,22 @@ app.post('/conversations', auth, asyncRoute(async (req, res) => {
 app.get('/messages/chats', auth, asyncRoute(async (req, res) => {
   const chats = (await db.query('SELECT c.id AS "chatId", u.id AS "userId", u.email, u.username, u.status, u.bio, u.avatar, u.banner, (SELECT count FROM unread_messages um WHERE um.conversation_id = c.id AND um.user_id = $1) AS "unreadCount" FROM conversations c JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id != $2 JOIN users u ON u.id = cm.user_id WHERE c.company_id = $3 AND c.event_id = $4', [req.user.id, req.user.id, config.companyId, config.eventId])).rows;
   const unreadCounts = Object.fromEntries(chats.map(c => [c.chatId, c.unreadCount || 0]));
-  const chatMessages = Object.fromEntries(await Promise.all(chats.map(async c => [c.chatId, await messageViews((await db.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY id ASC', [c.chatId])).rows)])));
-  res.json({ chats: chatMessages, unreadCounts, conversations: chats });
+  res.json({ chats: {}, unreadCounts, conversations: chats });
 }));
-app.get('/messages/chat/:chatId', auth, asyncRoute(async (req, res) => { const id = Number(req.params.chatId); if (!await conversation(id) || !await member(id, req.user.id)) return res.status(403).json({ error: 'Conversation access denied' }); res.json({ messages: await messageViews((await db.query('SELECT * FROM messages WHERE conversation_id = $1 ORDER BY id ASC', [id])).rows), chatId: id }); }));
+app.get('/messages/chat/:chatId', auth, asyncRoute(async (req, res) => {
+  const id = Number(req.params.chatId);
+  if (!await conversation(id) || !await member(id, req.user.id)) return res.status(403).json({ error: 'Conversation access denied' });
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 50);
+  const beforeId = req.query.before ? Number(req.query.before) : null;
+  if (beforeId !== null && (!Number.isInteger(beforeId) || beforeId < 1)) return res.status(400).json({ error: 'Invalid message cursor' });
+  const values = beforeId === null ? [id, limit + 1] : [id, beforeId, limit + 1];
+  const cursorClause = beforeId === null ? '' : ' AND m.id < $2';
+  const limitParameter = beforeId === null ? '$2' : '$3';
+  const rows = (await db.query(`SELECT m.*, u.id AS sender_user_id, u.email AS sender_email, u.username AS sender_username, u.status AS sender_status, u.bio AS sender_bio, u.avatar AS sender_avatar, u.banner AS sender_banner FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.conversation_id = $1${cursorClause} ORDER BY m.id DESC LIMIT ${limitParameter}`, values)).rows;
+  const hasMore = rows.length > limit;
+  const messages = rows.slice(0, limit).reverse().map(row => ({ id: row.id, chatId: row.conversation_id, senderId: row.sender_id, sender: { id: row.sender_user_id, email: row.sender_email, username: row.sender_username, status: row.sender_status, bio: row.sender_bio, avatar: row.sender_avatar, banner: row.sender_banner }, content: row.content, drawAttention: !!row.draw_attention, winks: !!row.winks, createdAt: row.created_at }));
+  res.json({ messages, hasMore, chatId: id });
+}));
 const sockets = new Map();
 function broadcast(userIds, type, payload) { for (const userId of userIds) for (const socket of (sockets.get(userId) || [])) if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, payload })); }
 async function saveMessage(userId, body) {

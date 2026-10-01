@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { AuthContext } from './AuthContext';
 import { useToast } from './ToastContext';
 import sounds from '../imports/sounds';
-import { getAllMessages, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
+import { getChatMessages, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
 
 export const ChatContext = createContext(null);
 
@@ -14,12 +14,15 @@ export function ChatProvider({ children }) {
   const [contacts, setContacts] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
   const [messages, setMessages] = useState({});
+  const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatRequest, setChatRequest] = useState(null);
   const socketRef = useRef(null);
+  const hasConnectedSocket = useRef(false);
   const contactsRef = useRef([]);
   const activeRef = useRef(null);
   const messageIds = useRef(new Set());
+  const messageLoads = useRef(new Map());
   const messageEffectListeners = useRef(new Map());
   const pendingMessageEffects = useRef(new Map());
 
@@ -48,30 +51,58 @@ export function ChatProvider({ children }) {
     return true;
   }, []);
 
+  const loadMessages = useCallback((chatId, beforeId) => {
+    const key = `${chatId}:${beforeId || 'latest'}`;
+    if (messageLoads.current.has(key)) return messageLoads.current.get(key);
+    const params = beforeId ? { before: beforeId, limit: 10 } : { limit: 10 };
+    const request = getChatMessages(chatId, params).then(({ data }) => {
+      const fetchedMessages = data.messages || [];
+      fetchedMessages.forEach((message) => messageIds.current.add(message.id));
+      setMessages((prev) => {
+        const existing = prev[chatId] || [];
+        const combined = new Map(existing.map((message) => [message.id, message]));
+        fetchedMessages.forEach((message) => combined.set(message.id, message));
+        return { ...prev, [chatId]: [...combined.values()].sort((a, b) => a.id - b.id) };
+      });
+      setHasMoreMessages((prev) => ({ ...prev, [chatId]: data.hasMore }));
+      return fetchedMessages.length;
+    }).finally(() => messageLoads.current.delete(key));
+    messageLoads.current.set(key, request);
+    return request;
+  }, []);
+
   useEffect(() => {
     if (!user) return undefined;
     let cancelled = false;
-    Promise.all([getFriends(), getAllMessages(), getFriendRequests()]).then(([usersResponse, messagesResponse, requestsResponse]) => {
+    Promise.all([getFriends(), getFriendRequests()]).then(([usersResponse, requestsResponse]) => {
       if (cancelled) return;
       const users = (usersResponse.data.users || []).map(toContact);
       setContacts(users);
       setFriendRequests(requestsResponse.data.requests || []);
-      const data = messagesResponse.data;
-      Object.values(data.chats || {}).flat().forEach((message) => messageIds.current.add(message.id));
-      setMessages(data.chats || {});
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [user]);
 
   useEffect(() => {
     if (!user) return undefined;
+    hasConnectedSocket.current = false;
     let closed = false; let socket; let retryTimer;
     const connect = () => {
     const token = localStorage.getItem('messenger_token');
     if (!token) return;
     socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(token)}`);
     socketRef.current = socket;
-    socket.onopen = () => { getFriends().then(({ data }) => { const list = (data.users || []).map(toContact); setContacts((prev) => { const known = new Set(prev.map((c) => c.id)); return [...prev, ...list.filter((c) => !known.has(c.id))]; }); }).catch(() => {}); getFriendRequests().then(({ data }) => setFriendRequests(data.requests || [])).catch(() => {}); };
+    socket.onopen = () => {
+      if (!hasConnectedSocket.current) {
+        hasConnectedSocket.current = true;
+        return;
+      }
+      Promise.all([getFriends(), getFriendRequests()]).then(([usersResponse, requestsResponse]) => {
+        const list = (usersResponse.data.users || []).map(toContact);
+        setContacts((prev) => { const known = new Set(prev.map((contact) => contact.id)); return [...prev, ...list.filter((contact) => !known.has(contact.id))]; });
+        setFriendRequests(requestsResponse.data.requests || []);
+      }).catch(() => {});
+    };
     socket.onclose = () => { if (!closed) retryTimer = setTimeout(connect, 2000); };
     socket.onmessage = (event) => {
       try {
@@ -139,5 +170,5 @@ export function ChatProvider({ children }) {
   }, []);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, messages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
 }
