@@ -24,6 +24,8 @@ const HomePage = () => {
   const [showFriendMenu, setShowFriendMenu] = React.useState(false);
   const [activeInvitation, setActiveInvitation] = React.useState(null);
   const friendMenuRef = React.useRef(null);
+  const friendMenuButtonRef = React.useRef(null);
+  const [friendMenuPosition, setFriendMenuPosition] = React.useState(null);
   const incomingRequests = friendRequests.filter((request) => request.direction !== 'outgoing');
   const focusChat = (contactId) => {
     setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
@@ -35,6 +37,27 @@ const HomePage = () => {
   const minimizeChat = (contactId, conversationId) => {
     setMinimizedChatIds((currentIds) => currentIds.includes(contactId) ? currentIds : [...currentIds, contactId]);
     if (conversationId === activeChatId) setActiveChatId(null);
+  };
+  const toggleFriendMenu = () => {
+    if (showFriendMenu) {
+      setShowFriendMenu(false);
+      return;
+    }
+    const trigger = friendMenuButtonRef.current?.getBoundingClientRect();
+    if (!trigger) return;
+    const width = Math.max(0, Math.min(224, window.innerWidth - 16));
+    setFriendMenuPosition({
+      left: Math.max(8, Math.min(trigger.left, window.innerWidth - width - 8)),
+      top: Math.max(8, Math.min(trigger.bottom + 4, window.innerHeight - 96)),
+      width,
+    });
+    setShowFriendMenu(true);
+  };
+  const handleFriendMenuKeyDown = (event, action) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
   };
 
   React.useEffect(() => {
@@ -102,26 +125,29 @@ const HomePage = () => {
             <div className="flex items-center mt-2 px-4">
               <SearchBar initialValue="Search contacts or the web..." />
               <div className="relative ml-1" ref={friendMenuRef}>
-                <button
-                  type="button"
-                  className="add-friend-button flex h-6 cursor-pointer items-center gap-1 p-1 outline-none"
+                <div
+                  ref={friendMenuButtonRef}
+                  role="button"
+                  tabIndex={0}
+                  className="add-friend-button flex h-6 w-fit cursor-pointer items-center gap-1 p-1 outline-none"
                   aria-label="Add a friend"
                   aria-haspopup="menu"
                   aria-expanded={showFriendMenu}
-                  onClick={() => setShowFriendMenu((isOpen) => !isOpen)}
+                  onClick={toggleFriendMenu}
+                  onKeyDown={(event) => handleFriendMenuKeyDown(event, toggleFriendMenu)}
                 >
-                  <span className="w-5"><img src={addcontact} alt="" /></span>
-                  <span><img src={arrow} alt="" /></span>
-                </button>
+                  <span className="flex h-4 w-5 items-center justify-center"><img src={addcontact} alt="" className="h-4 w-4 object-contain" /></span>
+                  <span><img src={arrow} alt="" className="h-2 w-2 object-contain" /></span>
+                </div>
                 {showFriendMenu && (
-                  <div role="menu" className="absolute left-0 top-full z-30 mt-1 w-56 rounded border border-[#7894a5] bg-gradient-to-b from-white via-[#f7fbfd] to-[#e3edf3] p-1 shadow-lg">
-                    <button type="button" role="menuitem" className="aerobutton w-full px-2 py-1 text-left text-[12px] text-[#17364a]" onClick={() => { setShowFriendMenu(false); setShowAddFriend(true); }}>
+                  <div role="menu" className="fixed z-[80] max-h-[calc(100vh-16px)] overflow-y-auto rounded border border-[#7894a5] bg-gradient-to-b from-white via-[#f7fbfd] to-[#e3edf3] p-1 shadow-lg" style={friendMenuPosition}>
+                    <div role="menuitem" tabIndex={0} className="cursor-pointer rounded px-2 py-1 text-[12px] text-[#17364a] hover:bg-[#d9effb] focus:bg-[#d9effb]" onClick={() => { setShowFriendMenu(false); setShowAddFriend(true); }} onKeyDown={(event) => handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setShowAddFriend(true); })}>
                       Add a friend...
-                    </button>
-                    <button type="button" role="menuitem" disabled={!incomingRequests.length} className="aerobutton flex w-full items-center justify-between px-2 py-1 text-left text-[12px] text-[#17364a] disabled:cursor-default disabled:opacity-50" onClick={() => { setShowFriendMenu(false); setActiveInvitation(incomingRequests[0] || null); }}>
+                    </div>
+                    <div role="menuitem" tabIndex={0} aria-disabled={!incomingRequests.length} className={`flex items-center justify-between rounded px-2 py-1 text-[12px] text-[#17364a] ${incomingRequests.length ? 'cursor-pointer hover:bg-[#d9effb] focus:bg-[#d9effb]' : 'cursor-default opacity-50'}`} onClick={() => { if (!incomingRequests.length) return; setShowFriendMenu(false); setActiveInvitation(incomingRequests[0]); }} onKeyDown={(event) => { if (incomingRequests.length) handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setActiveInvitation(incomingRequests[0]); }); }}>
                       <span>Review friend invitations</span>
-                      {incomingRequests.length > 0 && <span className="ml-2 rounded bg-[#1d2f7f] px-1.5 text-white">{incomingRequests.length}</span>}
-                    </button>
+                      {incomingRequests.length > 0 && <span className="ml-2 rounded bg-[#c43131] px-1.5 text-white">{incomingRequests.length}</span>}
+                    </div>
                   </div>
                 )}
               </div>

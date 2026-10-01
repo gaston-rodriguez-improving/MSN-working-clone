@@ -24,6 +24,8 @@ import chatPointBackground from '/assets/background/chat_background_point.png';
 import chatIconsSeparator from '/assets/background/chat_icons_separator.png';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 
+const EMPTY_MESSAGES = [];
+
 export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimized = false, windowIndex = 0 }) => {
   const { id: routeId } = useParams();
   const id = contactId ?? routeId;
@@ -52,7 +54,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
     onFocus?.();
   };
   const contact = contacts.find((item) => item.id === Number(id));
-  const messages = conversationId ? conversations[conversationId] || [] : [];
+  const messages = conversations[conversationId] || EMPTY_MESSAGES;
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +80,16 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   }, [conversationId, subscribeToMessageEffects, user?.id]);
   useEffect(() => () => clearTimeout(nudgeTimeoutRef.current), []);
   useEffect(() => { if (selectedEmoticon && conversationId && conversationId === activeChatId) { setInput(prev => prev + selectedEmoticon); setSelectedEmoticon(null); } }, [selectedEmoticon, conversationId, activeChatId, setSelectedEmoticon]);
-  useEffect(() => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; }, [messages]);
+  useEffect(() => {
+    const container = messageContainerRef.current;
+    if (!container || isMinimized) return undefined;
+    const scrollToLatest = () => { container.scrollTop = container.scrollHeight; };
+    scrollToLatest();
+    const frame = requestAnimationFrame(scrollToLatest);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scrollToLatest);
+    container.querySelectorAll('.message').forEach((message) => observer?.observe(message));
+    return () => { cancelAnimationFrame(frame); observer?.disconnect(); };
+  }, [messages, isMinimized]);
   const scrollToBottom = () => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; };
   const handleSubmit = async (e) => { e.preventDefault(); if (!input.trim() || !conversationId) return; const content = input.trim(); setInput(''); await send(conversationId, content); scrollToBottom(); };
 
@@ -393,7 +404,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      className="w-full border rounded-t-[4px] outline-none p-1 border-[#bdd5df]"
+                      className="h-8 w-full border rounded-t-[4px] outline-none p-1 border-[#bdd5df]"
                     />
                   </form>
                   <div>
