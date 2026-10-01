@@ -47,12 +47,14 @@ export const ContactCategoryGroup = ({ title, count, children }) => {
 
   return (
     <div className="mt-2">
-      <div className="ml-1 flex items-center border border-transparent">
-        <button type="button" className="flex min-w-0 flex-1 cursor-pointer items-center text-left hovercontact" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen}>
-          <h2>{isOpen ? <img src={closedTabArrow} alt="close section" /> : <img src={openTabArrow} alt="open section" />}</h2>
-          <span className="mr-1 text-[#1D2F7F]">{title}</span>
-          <span className="opacity-40">({count})</span>
-        </button>
+      <div
+        className="ml-1 flex cursor-pointer items-center border border-transparent hovercontact"
+        onClick={() => setIsOpen((open) => !open)}
+        aria-expanded={isOpen}
+      >
+        <h2>{isOpen ? <img src={closedTabArrow} alt="close section" /> : <img src={openTabArrow} alt="open section" />}</h2>
+        <p className="mr-1 text-[#1D2F7F]">{title}</p>
+        <p className="opacity-40">({count})</p>
       </div>
       {isOpen && children}
     </div>

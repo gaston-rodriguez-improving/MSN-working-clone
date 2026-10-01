@@ -5,7 +5,6 @@ import ContactCategory, { ContactCategoryGroup } from '../components/ContactList
 import arrow from '/assets/general/arrow.png';
 import ad from '/assets/ad.png';
 import addcontact from '/assets/contacts/add_contact.png';
-import showmenu from '/assets/contacts/1489.png';
 import contactlistlayout from '/assets/contacts/change_contact_list_layout.png';
 import { ChatContext } from '../contexts/ChatContext';
 import divider from '/assets/general/divider.png';
@@ -16,7 +15,6 @@ import { ChatWindow } from './ChatPage';
 import AddFriendModal from '../components/AddFriendModal';
 import FriendInvitationModal from '../components/FriendInvitationModal';
 import CategoryModal from '../components/CategoryModal';
-import ContactListLayoutModal from '../components/ContactListLayoutModal';
 import { AuthContext } from '../contexts/AuthContext';
 import { getContactPreferences as getContactPreferencesRequest, saveContactPreferences as saveContactPreferencesRequest } from '../data/api';
 
@@ -55,7 +53,6 @@ const HomePage = () => {
   const [showFriendMenu, setShowFriendMenu] = React.useState(false);
   const [contactMenu, setContactMenu] = React.useState(null);
   const [categoryModal, setCategoryModal] = React.useState(null);
-  const [showLayoutModal, setShowLayoutModal] = React.useState(false);
   const [contactSearch, setContactSearch] = React.useState('');
   const [storedContactPreferences, setStoredContactPreferences] = React.useState(() => ({ userId: user?.id, value: readContactPreferences(user?.id) }));
   const contactPreferenceRevision = React.useRef(0);
@@ -327,17 +324,9 @@ const HomePage = () => {
                   </div>
                 )}
               </div>
-              <button type="button" className="aerobutton flex h-6 items-center p-1" onClick={() => setShowLayoutModal(true)} aria-label="Change contact list layout" title="Change contact list layout">
+              <button type="button" className="aerobutton flex h-6 items-center p-1" onClick={() => saveContactPreferences({ ...contactPreferences, layout: layoutView === 'status' ? 'categories' : 'status' })} aria-label={layoutView === 'status' ? 'Switch to Categories view' : 'Switch to Online status view'} title={layoutView === 'status' ? 'Switch to Categories view' : 'Switch to Online status view'}>
                 <img src={contactlistlayout} alt="" className="w-5" />
               </button>
-              <div className="flex gap-1 items-center aerobutton p-1 h-6">
-                <div className="w-5">
-                  <img src={showmenu} alt="" />
-                </div>
-                <div>
-                  <img src={arrow} alt="" />
-                </div>
-              </div>
             </div>
 
             <div className="overflow-y-auto has-scrollbar h-[58.8vh]">
@@ -387,7 +376,6 @@ const HomePage = () => {
       {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} onSend={sendFriendInvitation} />}
       {friendInvitationToReview && <FriendInvitationModal request={friendInvitationToReview} onClose={() => setFriendInvitationToReview(null)} onRespond={respondToFriendInvitation} />}
       {categoryModal && <CategoryModal initialName={categoryModal.initialName} onClose={() => setCategoryModal(null)} onSave={(name) => saveCategory(name, categoryModal)} />}
-      {showLayoutModal && <ContactListLayoutModal viewMode={layoutView} onClose={() => setShowLayoutModal(false)} onApply={(layout) => saveContactPreferences({ ...contactPreferences, layout })} />}
       {contactMenu && (
         <div
           ref={contactMenuRef}
