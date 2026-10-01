@@ -65,7 +65,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
     if (!isMinimized && conversationId) setActiveChatId(conversationId);
   }, [isMinimized, conversationId, setActiveChatId]);
   useEffect(() => {
-    if (!conversationId) return undefined;
+    if (!conversationId || isMinimized) return undefined;
     return subscribeToMessageEffects(conversationId, (message) => {
       if (message.senderId === user?.id) return;
       if (message.drawAttention) {
@@ -77,7 +77,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
       }
       if (message.winks) setReceivedWink(message);
     });
-  }, [conversationId, subscribeToMessageEffects, user?.id]);
+  }, [conversationId, isMinimized, subscribeToMessageEffects, user?.id]);
   useEffect(() => () => clearTimeout(nudgeTimeoutRef.current), []);
   useEffect(() => { if (selectedEmoticon && conversationId && conversationId === activeChatId) { setInput(prev => prev + selectedEmoticon); setSelectedEmoticon(null); } }, [selectedEmoticon, conversationId, activeChatId, setSelectedEmoticon]);
   useEffect(() => {
@@ -404,7 +404,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      className="h-8 w-full border rounded-t-[4px] outline-none p-1 border-[#bdd5df]"
+                      className="h-16 w-full border rounded-t-[4px] outline-none p-1 border-[#bdd5df]"
                     />
                   </form>
                   <div>

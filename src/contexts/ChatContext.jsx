@@ -21,12 +21,15 @@ export function ChatProvider({ children }) {
   const activeRef = useRef(null);
   const messageIds = useRef(new Set());
   const messageEffectListeners = useRef(new Map());
+  const pendingMessageEffects = useRef(new Map());
 
   const subscribeToMessageEffects = useCallback((chatId, listener) => {
     const key = Number(chatId);
     const listeners = messageEffectListeners.current.get(key) || new Set();
     listeners.add(listener);
     messageEffectListeners.current.set(key, listeners);
+    (pendingMessageEffects.current.get(key) || []).forEach((message) => listener(message));
+    pendingMessageEffects.current.delete(key);
     return () => {
       listeners.delete(listener);
       if (!listeners.size) messageEffectListeners.current.delete(key);
@@ -75,15 +78,20 @@ export function ChatProvider({ children }) {
         const { type, payload } = JSON.parse(event.data);
         if (type === 'message' && appendMessage(payload)) {
           const listeners = messageEffectListeners.current.get(Number(payload.chatId));
-          if (payload.drawAttention || payload.winks) listeners?.forEach((listener) => listener(payload));
+          const isEffect = payload.drawAttention || payload.winks;
+          const opensChatForEffect = isEffect && !listeners?.size;
+          if (isEffect && listeners?.size) listeners.forEach((listener) => listener(payload));
+          else if (opensChatForEffect) {
+            const pending = pendingMessageEffects.current.get(Number(payload.chatId)) || [];
+            pendingMessageEffects.current.set(Number(payload.chatId), [...pending, payload]);
+            setChatRequest({ id: payload.senderId, at: Date.now() });
+          }
           const isActiveChat = payload.chatId === activeRef.current;
-          if (payload.drawAttention && !listeners?.size) playSound(sounds.nudge);
-          else if (!payload.drawAttention && !payload.winks && isActiveChat) playSound(sounds.newmessage);
-          else if (payload.winks && !listeners?.size) playSound(sounds.newmessage);
+          if (!isEffect && isActiveChat) playSound(sounds.newmessage);
           const notify = (sender) => {
-            if (!sender || isActiveChat) return;
+            if (!sender || isActiveChat || opensChatForEffect) return;
             const text = payload.drawAttention ? 'sent you a nudge.' : payload.winks ? 'sent you a wink.' : payload.content;
-            showNotification({ title: sender.username, text, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) }, { sound: !payload.drawAttention && !payload.winks });
+            showNotification({ title: sender.username, text, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) }, { sound: !isEffect });
           };
           const sender = contactsRef.current.find((contact) => contact.id === payload.senderId);
           if (sender) notify(sender);
