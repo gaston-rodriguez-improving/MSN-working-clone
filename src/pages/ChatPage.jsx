@@ -456,20 +456,22 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                         <img src={sendNudge} alt="" />
                       </div>
                     </div>
-                    <div className="px-2">
-                      <img src={chatIconsSeparator} alt="" />
-                    </div>
-                    <div className="flex items-center aerobutton p-1 h-6">
-                      <div>
-                        <img src={changeFont} alt="" />
+                    <div className="hidden">
+                      <div className="px-2">
+                        <img src={chatIconsSeparator} alt="" />
                       </div>
-                    </div>
-                    <div className="flex items-center aerobutton p-1 h-6">
-                      <div className="w-5">
-                        <img src={changeBackground} alt="" />
+                      <div className="flex items-center aerobutton p-1 h-6">
+                        <div>
+                          <img src={changeFont} alt="" />
+                        </div>
                       </div>
-                      <div>
-                        <img src={arrow} alt="" />
+                      <div className="flex items-center aerobutton p-1 h-6">
+                        <div className="w-5">
+                          <img src={changeBackground} alt="" />
+                        </div>
+                        <div>
+                          <img src={arrow} alt="" />
+                        </div>
                       </div>
                     </div>
                   </div>

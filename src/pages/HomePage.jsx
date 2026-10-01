@@ -344,16 +344,17 @@ const HomePage = () => {
                   {contactPreferences.categories.length > 0 && (
                     <ContactCategoryGroup title="Categories" count={contactPreferences.categories.length}>
                       {categorizedContacts.filter((category) => !hasContactSearch || category.contacts.length > 0).map((category) => (
-                        <ContactCategory
-                          key={category.id}
-                          title={category.name}
-                          categoryId={category.id}
-                          contacts={category.contacts}
-                          count={category.contacts.length}
-                          onOpenChat={openChat}
-                          onContextMenu={showContactMenu}
-                          onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
-                        />
+                        <div key={category.id} className="ml-4">
+                          <ContactCategory
+                            title={category.name}
+                            categoryId={category.id}
+                            contacts={category.contacts}
+                            count={category.contacts.length}
+                            onOpenChat={openChat}
+                            onContextMenu={showContactMenu}
+                            onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
+                          />
+                        </div>
                       ))}
                     </ContactCategoryGroup>
                   )}
