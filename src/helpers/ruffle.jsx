@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 
 let ruffleLoadPromise;
 
@@ -26,19 +26,34 @@ const loadRuffle = () => {
 
 const Ruffle = forwardRef((_, ref) => {
   const containerRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const timeoutRef = useRef(null);
+  const playerRef = useRef(null);
   const playRequestRef = useRef(0);
+
+  const stopPlayer = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+    const player = playerRef.current;
+    if (player) {
+      try {
+        player.pause?.();
+        player.ruffle?.().suspend?.();
+      } catch {
+        player.pause?.();
+      }
+      player.remove();
+      playerRef.current = null;
+    }
+    containerRef.current?.replaceChildren();
+  }, []);
 
   const playSWF = async (path, duration) => {
     const requestId = ++playRequestRef.current;
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    stopPlayer();
 
     try {
       const ruffleInstance = await loadRuffle();
       if (requestId !== playRequestRef.current || !containerRef.current) return;
-      containerRef.current.innerHTML = '';
-
       const player = ruffleInstance.createPlayer();
       player.config = {
         autoplay: true,
@@ -48,15 +63,17 @@ const Ruffle = forwardRef((_, ref) => {
       };
       player.style.width = '900px';
       player.style.height = '700px';
+      playerRef.current = player;
       containerRef.current.appendChild(player);
-      player.load(path);
+      await player.load(path);
+      if (requestId !== playRequestRef.current || playerRef.current !== player) return;
       timeoutRef.current = setTimeout(() => {
-        if (requestId !== playRequestRef.current || !containerRef.current) return;
-        containerRef.current.innerHTML = '';
-        setIsPlaying(false);
+        if (requestId !== playRequestRef.current) return;
+        playRequestRef.current += 1;
+        stopPlayer();
       }, duration * 1000);
-      setIsPlaying(true);
     } catch (error) {
+      if (requestId === playRequestRef.current) stopPlayer();
       console.error('Failed to play wink:', error.message);
     }
   };
@@ -65,13 +82,10 @@ const Ruffle = forwardRef((_, ref) => {
     play: (path, duration) => playSWF(path, duration),
   }));
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
+  useEffect(() => () => {
+    playRequestRef.current += 1;
+    stopPlayer();
+  }, [stopPlayer]);
 
   return (
     <div className="absolute top-0 left-0 flex w-full h-full justify-center items-center pointer-events-none">
