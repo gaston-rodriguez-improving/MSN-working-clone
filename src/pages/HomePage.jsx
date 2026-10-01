@@ -111,7 +111,7 @@ const HomePage = () => {
             <UserInformations />
             {/* Hotmail icon */}
             <div className="w-9 mb-2 flex items-end">
-              <a href="https://outlook.cloud.microsoft/mail/" aria-label="Open Outlook Mail">
+              <a href="https://outlook.cloud.microsoft/mail/" target="_blank" rel="noopener noreferrer" aria-label="Open Outlook Mail">
                 <img src={hotmail} alt="Outlook Mail" />
               </a>
             </div>

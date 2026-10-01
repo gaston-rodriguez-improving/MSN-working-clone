@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AvatarSmall from '../components/AvatarSmall';
 import arrow from '/assets/general/arrow.png';
 import Dropdown from './Dropdown';
+import ChangeDisplayPictureModal from './ChangeDisplayPictureModal';
 import statusFrames from '../imports/statusFrames';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import { updateBio } from '../data/api';
@@ -18,6 +19,7 @@ const UserInformation = () => {
   const displayName = user.name || account?.username || account?.email || 'User';
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState(user.message || '');
+  const [showChangePictureModal, setShowChangePictureModal] = useState(false);
   const inputRef = useRef(null);
 
   const options = [
@@ -77,7 +79,21 @@ const UserInformation = () => {
   };
   return (
     <div className="flex items-start">
-      <AvatarSmall />
+      <div
+        className="cursor-pointer"
+        role="button"
+        tabIndex={0}
+        aria-label="Change display picture"
+        onClick={() => setShowChangePictureModal(true)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setShowChangePictureModal(true);
+          }
+        }}
+      >
+        <AvatarSmall />
+      </div>
       <div className="ml-1 pt-1">
         <div className="flex items-center gap-1">
           <Dropdown options={options} value={user.status} onChange={handleStatusChange} showUserName />
@@ -114,6 +130,7 @@ const UserInformation = () => {
           </div>
         </div>
       </div>
+      {showChangePictureModal && <ChangeDisplayPictureModal setShowChangePictureModal={setShowChangePictureModal} />}
     </div>
   );
 };

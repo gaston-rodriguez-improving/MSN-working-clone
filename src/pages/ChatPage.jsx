@@ -117,6 +117,12 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   };
   const scrollToBottom = () => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; };
   const handleSubmit = async (e) => { e.preventDefault(); if (!input.trim() || !conversationId) return; const content = input.trim(); setInput(''); await send(conversationId, content); scrollToBottom(); };
+  const handleInputKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      handleSubmit(event);
+    }
+  };
 
   useEffect(() => {
     const getLastMessageTime = () => {
@@ -425,11 +431,12 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                   <img src={divider} alt="" className="pointer-events-none" />
                   {/*--------------------- INPUT ---------------------*/}
                   <form onSubmit={handleSubmit}>
-                    <input
-                      type="text"
+                    <textarea
+                      rows={2}
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      className="h-16 w-full border rounded-t-[4px] outline-none p-1 border-[#bdd5df]"
+                      onKeyDown={handleInputKeyDown}
+                      className="chat-message-input h-12 w-full resize-none border rounded-t-[4px] outline-none p-1 border-[#bdd5df]"
                     />
                   </form>
                   <div>

@@ -6,6 +6,10 @@
   font-family: "Segoe UI", "Segoe UI Variable", "Noto Sans", "Helvetica Neue", Arial, sans-serif !important;
 }
 
+.chat-window .win7 textarea.chat-message-input {
+  height: 48px;
+}
+
 .aerobutton {
   background-color: transparent;
   border: 2px solid transparent;
