@@ -79,19 +79,7 @@ const UserInformation = () => {
   };
   return (
     <div className="flex items-start">
-      <div
-        className="cursor-pointer"
-        role="button"
-        tabIndex={0}
-        aria-label="Change display picture"
-        onClick={() => setShowChangePictureModal(true)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            setShowChangePictureModal(true);
-          }
-        }}
-      >
+      <div className="cursor-pointer" onClick={() => setShowChangePictureModal(true)}>
         <AvatarSmall />
       </div>
       <div className="ml-1 pt-1">
