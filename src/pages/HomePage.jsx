@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import Background from '../components/Background';
 import SearchBar from '../components/SearchBar';
-import ContactCategory from '../components/ContactList';
+import ContactCategory, { ContactCategoryGroup } from '../components/ContactList';
 import arrow from '/assets/general/arrow.png';
 import ad from '/assets/ad.png';
 import addcontact from '/assets/contacts/add_contact.png';
@@ -15,9 +15,11 @@ import hotmail from '/assets/general/hotmail.png';
 import { ChatWindow } from './ChatPage';
 import AddFriendModal from '../components/AddFriendModal';
 import FriendInvitationModal from '../components/FriendInvitationModal';
+import CategoryModal from '../components/CategoryModal';
+import ContactListLayoutModal from '../components/ContactListLayoutModal';
 import { AuthContext } from '../contexts/AuthContext';
 
-const emptyContactPreferences = { favorites: [], categories: [], assignments: {} };
+const emptyContactPreferences = { favorites: [], categories: [], assignments: {}, layout: 'status' };
 const contactPreferencesKey = (userId) => `msn-contact-preferences:${userId}`;
 const matchesContact = (contact, query) => {
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -34,6 +36,7 @@ const readContactPreferences = (userId) => {
       favorites: Array.isArray(stored?.favorites) ? stored.favorites.map(String) : [],
       categories: Array.isArray(stored?.categories) ? stored.categories.filter((category) => category?.id && category?.name).map((category) => ({ id: String(category.id), name: String(category.name) })) : [],
       assignments: stored?.assignments && typeof stored.assignments === 'object' ? stored.assignments : {},
+      layout: stored?.layout === 'categories' ? 'categories' : 'status',
     };
   } catch {
     return emptyContactPreferences;
@@ -48,6 +51,8 @@ const HomePage = () => {
   const [showAddFriend, setShowAddFriend] = React.useState(false);
   const [showFriendMenu, setShowFriendMenu] = React.useState(false);
   const [contactMenu, setContactMenu] = React.useState(null);
+  const [categoryModal, setCategoryModal] = React.useState(null);
+  const [showLayoutModal, setShowLayoutModal] = React.useState(false);
   const [contactSearch, setContactSearch] = React.useState('');
   const [storedContactPreferences, setStoredContactPreferences] = React.useState(() => ({ userId: user?.id, value: readContactPreferences(user?.id) }));
   const friendMenuRef = React.useRef(null);
@@ -101,30 +106,33 @@ const HomePage = () => {
       top: Math.max(8, Math.min(event.clientY, window.innerHeight - 300)),
     });
   };
-  const createCategory = () => {
-    const name = window.prompt('Enter a category name:')?.trim();
-    if (!name) return;
-    if (contactPreferences.categories.some((category) => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-      window.alert('A category with that name already exists.');
-      return;
+  const openCategoryModal = (contactId = null, categoryId = null) => {
+    const category = contactPreferences.categories.find((item) => item.id === categoryId);
+    setCategoryModal({ contactId, categoryId, initialName: category?.name || '' });
+  };
+  const saveCategory = (name, target) => {
+    if (!name) return 'Enter a category name.';
+    if (contactPreferences.categories.some((category) => category.id !== target.categoryId && category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      return 'A category with that name already exists.';
+    }
+    if (target.categoryId) {
+      saveContactPreferences({
+        ...contactPreferences,
+        categories: contactPreferences.categories.map((category) => category.id === target.categoryId ? { ...category, name } : category),
+      });
+      return '';
     }
     const id = `category-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    saveContactPreferences({ ...contactPreferences, categories: [...contactPreferences.categories, { id, name }] });
-  };
-  const renameCategory = (categoryId) => {
-    const category = contactPreferences.categories.find((item) => item.id === categoryId);
-    if (!category) return;
-    const name = window.prompt('Rename category:', category.name)?.trim();
-    if (!name) return;
-    if (contactPreferences.categories.some((item) => item.id !== categoryId && item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-      window.alert('A category with that name already exists.');
-      return;
+    const assignments = { ...contactPreferences.assignments };
+    if (target.contactId !== null) {
+      const contactId = String(target.contactId);
+      const current = Array.isArray(assignments[contactId]) ? assignments[contactId] : [];
+      assignments[contactId] = [...new Set([...current, id])];
     }
-    saveContactPreferences({
-      ...contactPreferences,
-      categories: contactPreferences.categories.map((item) => item.id === categoryId ? { ...item, name } : item),
-    });
+    saveContactPreferences({ ...contactPreferences, categories: [...contactPreferences.categories, { id, name }], assignments });
+    return '';
   };
+  const renameCategory = (categoryId) => openCategoryModal(null, categoryId);
   const deleteCategory = (categoryId) => {
     const assignments = Object.fromEntries(Object.entries(contactPreferences.assignments).map(([contactId, categoryIds]) => [
       contactId,
@@ -204,14 +212,18 @@ const HomePage = () => {
   const hasContactSearch = contactSearch.trim().length > 0;
   const matchingContacts = contacts.filter((contact) => matchesContact(contact, contactSearch));
   const favoritesContacts = matchingContacts.filter((contact) => favoriteIds.has(String(contact.id)));
+  const statusContacts = matchingContacts.filter((contact) => contact.status !== 'group');
   const categorizedContacts = contactPreferences.categories.map((category) => ({
     ...category,
     contacts: matchingContacts.filter((contact) => Array.isArray(contactPreferences.assignments[String(contact.id)]) && contactPreferences.assignments[String(contact.id)].includes(category.id)),
   }));
   const uncategorizedContacts = matchingContacts.filter((contact) => contact.status !== 'group' && !assignedContactIds.has(String(contact.id)));
-  const availableContacts = uncategorizedContacts.filter((contact) => contact.status !== 'offline');
-  const offlineContacts = uncategorizedContacts.filter((contact) => contact.status === 'offline');
-  const hasContactSearchResults = favoritesContacts.length || categorizedContacts.some((category) => category.contacts.length) || availableContacts.length || offlineContacts.length;
+  const availableContacts = statusContacts.filter((contact) => contact.status !== 'offline');
+  const offlineContacts = statusContacts.filter((contact) => contact.status === 'offline');
+  const layoutView = contactPreferences.layout === 'categories' ? 'categories' : 'status';
+  const hasContactSearchResults = favoritesContacts.length || (layoutView === 'status'
+    ? availableContacts.length || offlineContacts.length
+    : categorizedContacts.some((category) => category.contacts.length) || uncategorizedContacts.length);
 
   const background = localStorage.getItem('scene');
 
@@ -282,11 +294,9 @@ const HomePage = () => {
                   </div>
                 )}
               </div>
-              <div className="flex gap-1 items-center aerobutton p-1 h-6">
-                <div className="w-5">
-                  <img src={contactlistlayout} alt="" />
-                </div>
-              </div>
+              <button type="button" className="aerobutton flex h-6 items-center p-1" onClick={() => setShowLayoutModal(true)} aria-label="Change contact list layout" title="Change contact list layout">
+                <img src={contactlistlayout} alt="" className="w-5" />
+              </button>
               <div className="flex gap-1 items-center aerobutton p-1 h-6">
                 <div className="w-5">
                   <img src={showmenu} alt="" />
@@ -300,24 +310,30 @@ const HomePage = () => {
             <div className="overflow-y-auto has-scrollbar h-[58.8vh]">
               {/* Contacts */}
               {(!hasContactSearch || favoritesContacts.length > 0) && <ContactCategory title="Favorites" contacts={favoritesContacts} count={favoritesContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} onDropContact={addFavorite} />}
-              <div className="ml-2 mt-3 flex items-center justify-between pr-2 text-[#1D2F7F]">
-                <span>Categories ({contactPreferences.categories.length})</span>
-                <button type="button" className="rounded px-1.5 text-[12px] hover:bg-[#d9effb]" onClick={createCategory} aria-label="Create category">+ Add</button>
-              </div>
-              {categorizedContacts.filter((category) => !hasContactSearch || category.contacts.length > 0).map((category) => (
-                <ContactCategory
-                  key={category.id}
-                  title={category.name}
-                  categoryId={category.id}
-                  contacts={category.contacts}
-                  count={category.contacts.length}
-                  onOpenChat={openChat}
-                  onContextMenu={showContactMenu}
-                  onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
-                />
-              ))}
-              {(!hasContactSearch || availableContacts.length > 0) && <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
-              {(!hasContactSearch || offlineContacts.length > 0) && <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+              {layoutView === 'status' ? (
+                <>
+                  {(!hasContactSearch || availableContacts.length > 0) && <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+                  {(!hasContactSearch || offlineContacts.length > 0) && <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+                </>
+              ) : (
+                <>
+                  <ContactCategoryGroup title="Categories" count={contactPreferences.categories.length}>
+                    {categorizedContacts.filter((category) => !hasContactSearch || category.contacts.length > 0).map((category) => (
+                      <ContactCategory
+                        key={category.id}
+                        title={category.name}
+                        categoryId={category.id}
+                        contacts={category.contacts}
+                        count={category.contacts.length}
+                        onOpenChat={openChat}
+                        onContextMenu={showContactMenu}
+                        onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
+                      />
+                    ))}
+                  </ContactCategoryGroup>
+                  {(!hasContactSearch || uncategorizedContacts.length > 0) && <ContactCategory title="Uncategorized" contacts={uncategorizedContacts} count={uncategorizedContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+                </>
+              )}
               {hasContactSearch && !hasContactSearchResults && <p className="px-3 py-2 text-sm text-gray-500">No contacts found.</p>}
             </div>
           </div>
@@ -337,6 +353,8 @@ const HomePage = () => {
       </Background>
       {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} onSend={sendFriendInvitation} />}
       {friendInvitationToReview && <FriendInvitationModal request={friendInvitationToReview} onClose={() => setFriendInvitationToReview(null)} onRespond={respondToFriendInvitation} />}
+      {categoryModal && <CategoryModal initialName={categoryModal.initialName} onClose={() => setCategoryModal(null)} onSave={(name) => saveCategory(name, categoryModal)} />}
+      {showLayoutModal && <ContactListLayoutModal viewMode={layoutView} onClose={() => setShowLayoutModal(false)} onApply={(layout) => saveContactPreferences({ ...contactPreferences, layout })} />}
       {contactMenu && (
         <div
           ref={contactMenuRef}
@@ -361,7 +379,7 @@ const HomePage = () => {
                 );
               }) : <div className="px-2 py-1 text-[12px] text-gray-500">No categories yet</div>}
               <div className="my-1 border-t border-[#c5d4dc]" />
-              <button type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#17364a] hover:bg-[#d9effb]" onClick={() => { setContactMenu(null); createCategory(); }}>Create category...</button>
+              <button type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#17364a] hover:bg-[#d9effb]" onClick={() => { const contactId = contactMenu.contact.id; setContactMenu(null); openCategoryModal(contactId); }}>Create category...</button>
             </>
           )}
           {contactMenu.type === 'category' && contactMenu.categoryId && (

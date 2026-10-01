@@ -42,6 +42,23 @@ const ContactCategory = ({ title, contacts, count, onOpenChat, onContextMenu, on
   );
 };
 
+export const ContactCategoryGroup = ({ title, count, children }) => {
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <div className="mt-2">
+      <div className="ml-1 flex items-center border border-transparent">
+        <button type="button" className="flex min-w-0 flex-1 cursor-pointer items-center text-left hovercontact" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen}>
+          <h2>{isOpen ? <img src={closedTabArrow} alt="close section" /> : <img src={openTabArrow} alt="open section" />}</h2>
+          <span className="mr-1 text-[#1D2F7F]">{title}</span>
+          <span className="opacity-40">({count})</span>
+        </button>
+      </div>
+      {isOpen && children}
+    </div>
+  );
+};
+
 const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
   const navigate = useNavigate();
 
