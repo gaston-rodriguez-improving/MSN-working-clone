@@ -54,6 +54,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   const focusWindow = () => {
     if (conversationId) setActiveChatId(conversationId);
     onFocus?.();
+    requestAnimationFrame(scrollToBottom);
   };
   const contact = contacts.find((item) => item.id === Number(id));
   const messages = conversations[conversationId] || EMPTY_MESSAGES;
