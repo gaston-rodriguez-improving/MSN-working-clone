@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AuthContext } from './AuthContext';
 import { useToast } from './ToastContext';
+import sounds from '../imports/sounds';
 import { getAllMessages, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
 
 export const ChatContext = createContext(null);
@@ -9,7 +10,7 @@ const toContact = (contact) => ({ ...contact, name: contact.username, message: c
 
 export function ChatProvider({ children }) {
   const { user } = useContext(AuthContext);
-  const { showNotification } = useToast();
+  const { showNotification, playSound } = useToast();
   const [contacts, setContacts] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
   const [messages, setMessages] = useState({});
@@ -73,14 +74,16 @@ export function ChatProvider({ children }) {
       try {
         const { type, payload } = JSON.parse(event.data);
         if (type === 'message' && appendMessage(payload)) {
-          if (payload.drawAttention || payload.winks) {
-            messageEffectListeners.current.get(Number(payload.chatId))?.forEach((listener) => listener(payload));
-          }
+          const listeners = messageEffectListeners.current.get(Number(payload.chatId));
+          if (payload.drawAttention || payload.winks) listeners?.forEach((listener) => listener(payload));
+          const isActiveChat = payload.chatId === activeRef.current;
+          if (payload.drawAttention && !listeners?.size) playSound(sounds.nudge);
+          else if (!payload.drawAttention && !payload.winks && isActiveChat) playSound(sounds.newmessage);
+          else if (payload.winks && !listeners?.size) playSound(sounds.newmessage);
           const notify = (sender) => {
-            const backgroundNudge = payload.drawAttention && document.visibilityState === 'hidden';
-            if (!sender || (payload.chatId === activeRef.current && !backgroundNudge)) return;
+            if (!sender || isActiveChat) return;
             const text = payload.drawAttention ? 'sent you a nudge.' : payload.winks ? 'sent you a wink.' : payload.content;
-            showNotification({ title: sender.username, text, avatar: sender.avatar, kind: payload.drawAttention ? 'nudge' : payload.winks ? 'wink' : undefined, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) });
+            showNotification({ title: sender.username, text, avatar: sender.avatar, onOpen: () => setChatRequest({ id: sender.id, at: Date.now() }) }, { sound: !payload.drawAttention && !payload.winks });
           };
           const sender = contactsRef.current.find((contact) => contact.id === payload.senderId);
           if (sender) notify(sender);
@@ -104,7 +107,7 @@ export function ChatProvider({ children }) {
     };
     connect();
     return () => { closed = true; clearTimeout(retryTimer); socket?.close(); socketRef.current = null; };
-  }, [user?.id, appendMessage, showNotification]);
+  }, [user?.id, appendMessage, showNotification, playSound]);
 
   const sendFriendInvitation = useCallback(async (userId, message) => {
     const { data } = await sendFriendRequest(userId, message);

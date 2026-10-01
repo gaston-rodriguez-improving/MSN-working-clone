@@ -57,7 +57,6 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
     // Save changes before closing modal
     if (!(await handleApplyChanges())) return;
     setShowOptionsModal(false); // Close modal
-    window.location.reload();
   };
 
   const handleCloseModal = () => {

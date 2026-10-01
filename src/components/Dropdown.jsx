@@ -29,7 +29,6 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
     options.find((option) => option.value === user.status) || options.find((option) => !option.separator) || { value: '', label: '' },
   );
   const [isOpen, setIsOpen] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
 
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -57,12 +56,6 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
       case 'ChangeDisplayName':
         setShowOptionsModal(true);
         break;
-      case 'NudgeNotifications':
-        if (typeof Notification !== 'undefined') {
-          if (Notification.permission === 'default') Notification.requestPermission().then(setNotificationPermission).catch(() => {});
-          else setNotificationPermission(Notification.permission);
-        }
-        break;
       default:
         break;
     }
@@ -85,13 +78,6 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  const optionLabel = (option) => {
-    if (option.value !== 'NudgeNotifications') return option.label;
-    if (notificationPermission === 'granted') return 'Desktop nudge alerts enabled';
-    if (notificationPermission === 'denied') return 'Desktop nudge alerts blocked in browser settings';
-    return option.label;
-  };
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
@@ -127,7 +113,7 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
                 ) : (
                   <div className="w-4" />
                 )}
-                {optionLabel(option)}
+                {option.label}
               </li>
             )
           )}
