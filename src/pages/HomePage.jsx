@@ -19,6 +19,12 @@ import { AuthContext } from '../contexts/AuthContext';
 
 const emptyContactPreferences = { favorites: [], categories: [], assignments: {} };
 const contactPreferencesKey = (userId) => `msn-contact-preferences:${userId}`;
+const matchesContact = (contact, query) => {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+  return [contact.name, contact.username, contact.email, contact.message, contact.bio, contact.statusMessage, contact.status_message]
+    .some((value) => String(value || '').toLocaleLowerCase().includes(normalizedQuery));
+};
 
 const readContactPreferences = (userId) => {
   if (!userId) return emptyContactPreferences;
@@ -42,6 +48,7 @@ const HomePage = () => {
   const [showAddFriend, setShowAddFriend] = React.useState(false);
   const [showFriendMenu, setShowFriendMenu] = React.useState(false);
   const [contactMenu, setContactMenu] = React.useState(null);
+  const [contactSearch, setContactSearch] = React.useState('');
   const [storedContactPreferences, setStoredContactPreferences] = React.useState(() => ({ userId: user?.id, value: readContactPreferences(user?.id) }));
   const friendMenuRef = React.useRef(null);
   const contactMenuRef = React.useRef(null);
@@ -194,14 +201,17 @@ const HomePage = () => {
   const assignedContactIds = new Set(Object.entries(contactPreferences.assignments)
     .filter(([, categoryIds]) => Array.isArray(categoryIds) && categoryIds.some((id) => contactPreferences.categories.some((category) => category.id === id)))
     .map(([contactId]) => contactId));
-  const favoritesContacts = contacts.filter((contact) => favoriteIds.has(String(contact.id)));
+  const hasContactSearch = contactSearch.trim().length > 0;
+  const matchingContacts = contacts.filter((contact) => matchesContact(contact, contactSearch));
+  const favoritesContacts = matchingContacts.filter((contact) => favoriteIds.has(String(contact.id)));
   const categorizedContacts = contactPreferences.categories.map((category) => ({
     ...category,
-    contacts: contacts.filter((contact) => Array.isArray(contactPreferences.assignments[String(contact.id)]) && contactPreferences.assignments[String(contact.id)].includes(category.id)),
+    contacts: matchingContacts.filter((contact) => Array.isArray(contactPreferences.assignments[String(contact.id)]) && contactPreferences.assignments[String(contact.id)].includes(category.id)),
   }));
-  const uncategorizedContacts = contacts.filter((contact) => contact.status !== 'group' && !assignedContactIds.has(String(contact.id)));
+  const uncategorizedContacts = matchingContacts.filter((contact) => contact.status !== 'group' && !assignedContactIds.has(String(contact.id)));
   const availableContacts = uncategorizedContacts.filter((contact) => contact.status !== 'offline');
   const offlineContacts = uncategorizedContacts.filter((contact) => contact.status === 'offline');
+  const hasContactSearchResults = favoritesContacts.length || categorizedContacts.some((category) => category.contacts.length) || availableContacts.length || offlineContacts.length;
 
   const background = localStorage.getItem('scene');
 
@@ -244,7 +254,7 @@ const HomePage = () => {
 
             {/* Searchbar and icons */}
             <div className="flex items-center mt-2 px-4">
-              <SearchBar initialValue="Search contacts or the web..." />
+              <SearchBar value={contactSearch} onChange={setContactSearch} placeholder="Search your contacts..." />
               <div className="relative ml-1" ref={friendMenuRef}>
                 <div
                   ref={friendMenuButtonRef}
@@ -289,12 +299,12 @@ const HomePage = () => {
 
             <div className="overflow-y-auto has-scrollbar h-[58.8vh]">
               {/* Contacts */}
-              <ContactCategory title="Favorites" contacts={favoritesContacts} count={favoritesContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} onDropContact={addFavorite} />
+              {(!hasContactSearch || favoritesContacts.length > 0) && <ContactCategory title="Favorites" contacts={favoritesContacts} count={favoritesContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} onDropContact={addFavorite} />}
               <div className="ml-2 mt-3 flex items-center justify-between pr-2 text-[#1D2F7F]">
                 <span>Categories ({contactPreferences.categories.length})</span>
                 <button type="button" className="rounded px-1.5 text-[12px] hover:bg-[#d9effb]" onClick={createCategory} aria-label="Create category">+ Add</button>
               </div>
-              {categorizedContacts.map((category) => (
+              {categorizedContacts.filter((category) => !hasContactSearch || category.contacts.length > 0).map((category) => (
                 <ContactCategory
                   key={category.id}
                   title={category.name}
@@ -306,8 +316,9 @@ const HomePage = () => {
                   onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
                 />
               ))}
-              <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />
-              <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />
+              {(!hasContactSearch || availableContacts.length > 0) && <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+              {(!hasContactSearch || offlineContacts.length > 0) && <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+              {hasContactSearch && !hasContactSearchResults && <p className="px-3 py-2 text-sm text-gray-500">No contacts found.</p>}
             </div>
           </div>
 
