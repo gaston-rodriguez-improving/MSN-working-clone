@@ -17,12 +17,11 @@ import AddFriendModal from '../components/AddFriendModal';
 import FriendInvitationModal from '../components/FriendInvitationModal';
 
 const HomePage = () => {
-  const { activeChatId, chatRequest, contacts, friendRequests, sendFriendInvitation, respondToFriendInvitation, setActiveChatId } = useContext(ChatContext);
+  const { activeChatId, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, sendFriendInvitation, respondToFriendInvitation, setActiveChatId } = useContext(ChatContext);
   const [openChatIds, setOpenChatIds] = React.useState([]);
   const [minimizedChatIds, setMinimizedChatIds] = React.useState([]);
   const [showAddFriend, setShowAddFriend] = React.useState(false);
   const [showFriendMenu, setShowFriendMenu] = React.useState(false);
-  const [activeInvitation, setActiveInvitation] = React.useState(null);
   const friendMenuRef = React.useRef(null);
   const friendMenuButtonRef = React.useRef(null);
   const [friendMenuPosition, setFriendMenuPosition] = React.useState(null);
@@ -130,13 +129,13 @@ const HomePage = () => {
                   role="button"
                   tabIndex={0}
                   className="add-friend-button flex h-6 w-fit cursor-pointer items-center gap-1 p-1 outline-none"
-                  aria-label="Add a friend"
+                  aria-label={incomingRequests.length ? `Add a friend, ${incomingRequests.length} pending invitation${incomingRequests.length === 1 ? '' : 's'}` : 'Add a friend'}
                   aria-haspopup="menu"
                   aria-expanded={showFriendMenu}
                   onClick={toggleFriendMenu}
                   onKeyDown={(event) => handleFriendMenuKeyDown(event, toggleFriendMenu)}
                 >
-                  <span className="flex h-4 w-5 items-center justify-center"><img src={addcontact} alt="" className="h-4 w-4 object-contain" /></span>
+                  <span className="relative flex h-4 w-5 items-center justify-center"><img src={addcontact} alt="" className="h-4 w-4 object-contain" />{incomingRequests.length > 0 && <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[#c43131] px-1 text-[9px] leading-none text-white">{incomingRequests.length}</span>}</span>
                   <span><img src={arrow} alt="" className="h-2 w-2 object-contain" /></span>
                 </div>
                 {showFriendMenu && (
@@ -144,7 +143,7 @@ const HomePage = () => {
                     <div role="menuitem" tabIndex={0} className="cursor-pointer rounded px-2 py-1 text-[12px] text-[#17364a] hover:bg-[#d9effb] focus:bg-[#d9effb]" onClick={() => { setShowFriendMenu(false); setShowAddFriend(true); }} onKeyDown={(event) => handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setShowAddFriend(true); })}>
                       Add a friend...
                     </div>
-                    <div role="menuitem" tabIndex={0} aria-disabled={!incomingRequests.length} className={`flex items-center justify-between rounded px-2 py-1 text-[12px] text-[#17364a] ${incomingRequests.length ? 'cursor-pointer hover:bg-[#d9effb] focus:bg-[#d9effb]' : 'cursor-default opacity-50'}`} onClick={() => { if (!incomingRequests.length) return; setShowFriendMenu(false); setActiveInvitation(incomingRequests[0]); }} onKeyDown={(event) => { if (incomingRequests.length) handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setActiveInvitation(incomingRequests[0]); }); }}>
+                    <div role="menuitem" tabIndex={0} aria-disabled={!incomingRequests.length} className={`flex items-center justify-between rounded px-2 py-1 text-[12px] text-[#17364a] ${incomingRequests.length ? 'cursor-pointer hover:bg-[#d9effb] focus:bg-[#d9effb]' : 'cursor-default opacity-50'}`} onClick={() => { if (!incomingRequests.length) return; setShowFriendMenu(false); setFriendInvitationToReview(incomingRequests[0]); }} onKeyDown={(event) => { if (incomingRequests.length) handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setFriendInvitationToReview(incomingRequests[0]); }); }}>
                       <span>Review friend invitations</span>
                       {incomingRequests.length > 0 && <span className="ml-2 rounded bg-[#c43131] px-1.5 text-white">{incomingRequests.length}</span>}
                     </div>
@@ -189,7 +188,7 @@ const HomePage = () => {
       </div>
       </Background>
       {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} onSend={sendFriendInvitation} />}
-      {activeInvitation && <FriendInvitationModal request={activeInvitation} onClose={() => setActiveInvitation(null)} onRespond={respondToFriendInvitation} />}
+      {friendInvitationToReview && <FriendInvitationModal request={friendInvitationToReview} onClose={() => setFriendInvitationToReview(null)} onRespond={respondToFriendInvitation} />}
       <div className="pointer-events-none fixed inset-0 z-50">
         {openChatIds.map((contactId, index) => (
           <ChatWindow

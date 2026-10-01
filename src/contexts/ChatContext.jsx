@@ -13,6 +13,7 @@ export function ChatProvider({ children }) {
   const { showNotification, playSound } = useToast();
   const [contacts, setContacts] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
+  const [friendInvitationToReview, setFriendInvitationToReview] = useState(null);
   const [messages, setMessages] = useState({});
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [activeChatId, setActiveChatId] = useState(null);
@@ -131,7 +132,7 @@ export function ChatProvider({ children }) {
         if (type === 'friend_request') {
           const request = { ...payload, user: payload.user };
           setFriendRequests((prev) => [request, ...prev.filter((item) => item.id !== request.id)]);
-          showNotification({ title: payload.user.username, text: 'sent you a friend invitation.', avatar: payload.user.avatar });
+          showNotification({ title: payload.user.username, text: 'sent you a friend invitation.', avatar: payload.user.avatar, actionLabel: 'Review invitation', onOpen: () => setFriendInvitationToReview(request) });
         }
         if (type === 'friend_request_update') {
           setFriendRequests((prev) => prev.filter((request) => request.id !== payload.id));
@@ -170,5 +171,5 @@ export function ChatProvider({ children }) {
   }, []);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
 }
