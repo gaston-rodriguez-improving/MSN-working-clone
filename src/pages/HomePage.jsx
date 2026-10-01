@@ -250,10 +250,12 @@ const HomePage = () => {
   const uncategorizedContacts = matchingContacts.filter((contact) => contact.status !== 'group' && !assignedContactIds.has(String(contact.id)));
   const availableContacts = statusContacts.filter((contact) => contact.status !== 'offline');
   const offlineContacts = statusContacts.filter((contact) => contact.status === 'offline');
+  const uncategorizedAvailableContacts = uncategorizedContacts.filter((contact) => contact.status !== 'offline');
+  const uncategorizedOfflineContacts = uncategorizedContacts.filter((contact) => contact.status === 'offline');
   const layoutView = contactPreferences.layout === 'categories' ? 'categories' : 'status';
   const hasContactSearchResults = favoritesContacts.length || (layoutView === 'status'
     ? availableContacts.length || offlineContacts.length
-    : categorizedContacts.some((category) => category.contacts.length) || uncategorizedContacts.length);
+    : categorizedContacts.some((category) => category.contacts.length) || uncategorizedAvailableContacts.length || uncategorizedOfflineContacts.length);
 
   const background = localStorage.getItem('scene');
 
@@ -339,21 +341,24 @@ const HomePage = () => {
                 </>
               ) : (
                 <>
-                  <ContactCategoryGroup title="Categories" count={contactPreferences.categories.length}>
-                    {categorizedContacts.filter((category) => !hasContactSearch || category.contacts.length > 0).map((category) => (
-                      <ContactCategory
-                        key={category.id}
-                        title={category.name}
-                        categoryId={category.id}
-                        contacts={category.contacts}
-                        count={category.contacts.length}
-                        onOpenChat={openChat}
-                        onContextMenu={showContactMenu}
-                        onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
-                      />
-                    ))}
-                  </ContactCategoryGroup>
-                  {(!hasContactSearch || uncategorizedContacts.length > 0) && <ContactCategory title="Uncategorized" contacts={uncategorizedContacts} count={uncategorizedContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+                  {contactPreferences.categories.length > 0 && (
+                    <ContactCategoryGroup title="Categories" count={contactPreferences.categories.length}>
+                      {categorizedContacts.filter((category) => !hasContactSearch || category.contacts.length > 0).map((category) => (
+                        <ContactCategory
+                          key={category.id}
+                          title={category.name}
+                          categoryId={category.id}
+                          contacts={category.contacts}
+                          count={category.contacts.length}
+                          onOpenChat={openChat}
+                          onContextMenu={showContactMenu}
+                          onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
+                        />
+                      ))}
+                    </ContactCategoryGroup>
+                  )}
+                  {(!hasContactSearch || uncategorizedAvailableContacts.length > 0) && <ContactCategory title="Available" contacts={uncategorizedAvailableContacts} count={uncategorizedAvailableContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
+                  {(!hasContactSearch || uncategorizedOfflineContacts.length > 0) && <ContactCategory title="Offline" contacts={uncategorizedOfflineContacts} count={uncategorizedOfflineContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />}
                 </>
               )}
               {hasContactSearch && !hasContactSearchResults && <p className="px-3 py-2 text-sm text-gray-500">No contacts found.</p>}
