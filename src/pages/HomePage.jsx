@@ -15,17 +15,40 @@ import hotmail from '/assets/general/hotmail.png';
 import { ChatWindow } from './ChatPage';
 import AddFriendModal from '../components/AddFriendModal';
 import FriendInvitationModal from '../components/FriendInvitationModal';
+import { AuthContext } from '../contexts/AuthContext';
+
+const emptyContactPreferences = { favorites: [], categories: [], assignments: {} };
+const contactPreferencesKey = (userId) => `msn-contact-preferences:${userId}`;
+
+const readContactPreferences = (userId) => {
+  if (!userId) return emptyContactPreferences;
+  try {
+    const stored = JSON.parse(localStorage.getItem(contactPreferencesKey(userId)) || 'null');
+    return {
+      favorites: Array.isArray(stored?.favorites) ? stored.favorites.map(String) : [],
+      categories: Array.isArray(stored?.categories) ? stored.categories.filter((category) => category?.id && category?.name).map((category) => ({ id: String(category.id), name: String(category.name) })) : [],
+      assignments: stored?.assignments && typeof stored.assignments === 'object' ? stored.assignments : {},
+    };
+  } catch {
+    return emptyContactPreferences;
+  }
+};
 
 const HomePage = () => {
+  const { user } = useContext(AuthContext);
   const { activeChatId, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, sendFriendInvitation, respondToFriendInvitation, setActiveChatId } = useContext(ChatContext);
   const [openChatIds, setOpenChatIds] = React.useState([]);
   const [minimizedChatIds, setMinimizedChatIds] = React.useState([]);
   const [showAddFriend, setShowAddFriend] = React.useState(false);
   const [showFriendMenu, setShowFriendMenu] = React.useState(false);
+  const [contactMenu, setContactMenu] = React.useState(null);
+  const [storedContactPreferences, setStoredContactPreferences] = React.useState(() => ({ userId: user?.id, value: readContactPreferences(user?.id) }));
   const friendMenuRef = React.useRef(null);
+  const contactMenuRef = React.useRef(null);
   const friendMenuButtonRef = React.useRef(null);
   const [friendMenuPosition, setFriendMenuPosition] = React.useState(null);
   const incomingRequests = friendRequests.filter((request) => request.direction !== 'outgoing');
+  const contactPreferences = storedContactPreferences.userId === user?.id ? storedContactPreferences.value : emptyContactPreferences;
   const focusChat = (contactId) => {
     setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
     setOpenChatIds((currentIds) => {
@@ -58,6 +81,98 @@ const HomePage = () => {
       action();
     }
   };
+  const saveContactPreferences = (value) => {
+    if (!user?.id) return;
+    localStorage.setItem(contactPreferencesKey(user.id), JSON.stringify(value));
+    setStoredContactPreferences({ userId: user.id, value });
+  };
+  const showContactMenu = (event, target) => {
+    const width = Math.min(240, window.innerWidth - 16);
+    setContactMenu({
+      ...target,
+      left: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
+      top: Math.max(8, Math.min(event.clientY, window.innerHeight - 300)),
+    });
+  };
+  const createCategory = () => {
+    const name = window.prompt('Enter a category name:')?.trim();
+    if (!name) return;
+    if (contactPreferences.categories.some((category) => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      window.alert('A category with that name already exists.');
+      return;
+    }
+    const id = `category-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    saveContactPreferences({ ...contactPreferences, categories: [...contactPreferences.categories, { id, name }] });
+  };
+  const renameCategory = (categoryId) => {
+    const category = contactPreferences.categories.find((item) => item.id === categoryId);
+    if (!category) return;
+    const name = window.prompt('Rename category:', category.name)?.trim();
+    if (!name) return;
+    if (contactPreferences.categories.some((item) => item.id !== categoryId && item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      window.alert('A category with that name already exists.');
+      return;
+    }
+    saveContactPreferences({
+      ...contactPreferences,
+      categories: contactPreferences.categories.map((item) => item.id === categoryId ? { ...item, name } : item),
+    });
+  };
+  const deleteCategory = (categoryId) => {
+    const assignments = Object.fromEntries(Object.entries(contactPreferences.assignments).map(([contactId, categoryIds]) => [
+      contactId,
+      Array.isArray(categoryIds) ? categoryIds.filter((id) => id !== categoryId) : [],
+    ]));
+    saveContactPreferences({
+      ...contactPreferences,
+      categories: contactPreferences.categories.filter((category) => category.id !== categoryId),
+      assignments,
+    });
+  };
+  const toggleFavorite = (contactId) => {
+    const id = String(contactId);
+    const favorites = contactPreferences.favorites.includes(id)
+      ? contactPreferences.favorites.filter((favoriteId) => favoriteId !== id)
+      : [...contactPreferences.favorites, id];
+    saveContactPreferences({ ...contactPreferences, favorites });
+  };
+  const addFavorite = (contactId) => {
+    const id = String(contactId);
+    if (!contactPreferences.favorites.includes(id)) saveContactPreferences({ ...contactPreferences, favorites: [...contactPreferences.favorites, id] });
+  };
+  const toggleCategoryAssignment = (contactId, categoryId) => {
+    const id = String(contactId);
+    const current = Array.isArray(contactPreferences.assignments[id]) ? contactPreferences.assignments[id] : [];
+    const categoryIds = current.includes(categoryId) ? current.filter((item) => item !== categoryId) : [...current, categoryId];
+    const assignments = { ...contactPreferences.assignments, [id]: categoryIds };
+    if (!categoryIds.length) delete assignments[id];
+    saveContactPreferences({ ...contactPreferences, assignments });
+  };
+  const addContactToCategory = (contactId, categoryId) => {
+    const id = String(contactId);
+    const current = Array.isArray(contactPreferences.assignments[id]) ? contactPreferences.assignments[id] : [];
+    if (!current.includes(categoryId)) {
+      saveContactPreferences({ ...contactPreferences, assignments: { ...contactPreferences.assignments, [id]: [...current, categoryId] } });
+    }
+  };
+
+  React.useEffect(() => {
+    setStoredContactPreferences({ userId: user?.id, value: readContactPreferences(user?.id) });
+  }, [user?.id]);
+
+  React.useEffect(() => {
+    if (!contactMenu) return undefined;
+    const closeContactMenu = (event) => {
+      if (contactMenuRef.current && !contactMenuRef.current.contains(event.target)) setContactMenu(null);
+    };
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setContactMenu(null); };
+    document.addEventListener('mousedown', closeContactMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeContactMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [contactMenu]);
 
   React.useEffect(() => {
     const closeFriendMenu = (event) => {
@@ -75,11 +190,18 @@ const HomePage = () => {
       : [...currentIds, chatRequest.id]);
   }, [chatRequest]);
 
-  // Filtrage des contacts par statut
-  const favoritesContacts = contacts.filter((contact) => contact.isFavorite === 1);
-  const groupsContacts = contacts.filter((contact) => contact.status === 'group');
-  const availableContacts = contacts.filter((contact) => contact.status !== 'offline');
-  const offlineContacts = contacts.filter((contact) => contact.status === 'offline');
+  const favoriteIds = new Set(contactPreferences.favorites);
+  const assignedContactIds = new Set(Object.entries(contactPreferences.assignments)
+    .filter(([, categoryIds]) => Array.isArray(categoryIds) && categoryIds.some((id) => contactPreferences.categories.some((category) => category.id === id)))
+    .map(([contactId]) => contactId));
+  const favoritesContacts = contacts.filter((contact) => favoriteIds.has(String(contact.id)));
+  const categorizedContacts = contactPreferences.categories.map((category) => ({
+    ...category,
+    contacts: contacts.filter((contact) => Array.isArray(contactPreferences.assignments[String(contact.id)]) && contactPreferences.assignments[String(contact.id)].includes(category.id)),
+  }));
+  const uncategorizedContacts = contacts.filter((contact) => contact.status !== 'group' && !assignedContactIds.has(String(contact.id)));
+  const availableContacts = uncategorizedContacts.filter((contact) => contact.status !== 'offline');
+  const offlineContacts = uncategorizedContacts.filter((contact) => contact.status === 'offline');
 
   const background = localStorage.getItem('scene');
 
@@ -167,10 +289,25 @@ const HomePage = () => {
 
             <div className="overflow-y-auto has-scrollbar h-[58.8vh]">
               {/* Contacts */}
-              <ContactCategory title="Favorites" contacts={favoritesContacts} count={favoritesContacts.length} onOpenChat={openChat} />
-              <ContactCategory title="Groups" contacts={groupsContacts} count={groupsContacts.length} onOpenChat={openChat} />
-              <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} onOpenChat={openChat} />
-              <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} onOpenChat={openChat} />
+              <ContactCategory title="Favorites" contacts={favoritesContacts} count={favoritesContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} onDropContact={addFavorite} />
+              <div className="ml-2 mt-3 flex items-center justify-between pr-2 text-[#1D2F7F]">
+                <span>Categories ({contactPreferences.categories.length})</span>
+                <button type="button" className="rounded px-1.5 text-[12px] hover:bg-[#d9effb]" onClick={createCategory} aria-label="Create category">+ Add</button>
+              </div>
+              {categorizedContacts.map((category) => (
+                <ContactCategory
+                  key={category.id}
+                  title={category.name}
+                  categoryId={category.id}
+                  contacts={category.contacts}
+                  count={category.contacts.length}
+                  onOpenChat={openChat}
+                  onContextMenu={showContactMenu}
+                  onDropContact={(contactId) => addContactToCategory(contactId, category.id)}
+                />
+              ))}
+              <ContactCategory title="Available" contacts={availableContacts} count={availableContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />
+              <ContactCategory title="Offline" contacts={offlineContacts} count={offlineContacts.length} onOpenChat={openChat} onContextMenu={showContactMenu} />
             </div>
           </div>
 
@@ -189,6 +326,41 @@ const HomePage = () => {
       </Background>
       {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} onSend={sendFriendInvitation} />}
       {friendInvitationToReview && <FriendInvitationModal request={friendInvitationToReview} onClose={() => setFriendInvitationToReview(null)} onRespond={respondToFriendInvitation} />}
+      {contactMenu && (
+        <div
+          ref={contactMenuRef}
+          role="menu"
+          className="fixed z-[1000] max-h-[calc(100vh-16px)] overflow-y-auto rounded border border-[#7894a5] bg-gradient-to-b from-white via-[#f7fbfd] to-[#e3edf3] p-1 shadow-lg"
+          style={{ left: contactMenu.left, top: contactMenu.top, width: Math.min(240, window.innerWidth - 16) }}
+        >
+          {contactMenu.type === 'contact' && (
+            <>
+              <div className="border-b border-[#c5d4dc] px-2 py-1 text-[12px] font-semibold text-[#17364a]">{contactMenu.contact.name || contactMenu.contact.username}</div>
+              <button type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#17364a] hover:bg-[#d9effb]" onClick={() => { toggleFavorite(contactMenu.contact.id); setContactMenu(null); }}>
+                {favoriteIds.has(String(contactMenu.contact.id)) ? 'Remove from Favorites' : 'Add to Favorites'}
+              </button>
+              <div className="px-2 pb-0.5 pt-1 text-[11px] text-gray-500">Add to category</div>
+              {contactPreferences.categories.length ? contactPreferences.categories.map((category) => {
+                const contactCategories = contactPreferences.assignments[String(contactMenu.contact.id)];
+                const assigned = Array.isArray(contactCategories) && contactCategories.includes(category.id);
+                return (
+                  <button key={category.id} type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#17364a] hover:bg-[#d9effb]" onClick={() => { toggleCategoryAssignment(contactMenu.contact.id, category.id); setContactMenu(null); }}>
+                    {assigned ? '✓ ' : ''}{category.name}
+                  </button>
+                );
+              }) : <div className="px-2 py-1 text-[12px] text-gray-500">No categories yet</div>}
+              <div className="my-1 border-t border-[#c5d4dc]" />
+              <button type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#17364a] hover:bg-[#d9effb]" onClick={() => { setContactMenu(null); createCategory(); }}>Create category...</button>
+            </>
+          )}
+          {contactMenu.type === 'category' && contactMenu.categoryId && (
+            <>
+              <button type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#17364a] hover:bg-[#d9effb]" onClick={() => { const id = contactMenu.categoryId; setContactMenu(null); renameCategory(id); }}>Rename category...</button>
+              <button type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#9b2525] hover:bg-[#fbe3e3]" onClick={() => { const id = contactMenu.categoryId; setContactMenu(null); deleteCategory(id); }}>Delete category</button>
+            </>
+          )}
+        </div>
+      )}
       <div className="pointer-events-none fixed inset-0 z-50">
         {openChatIds.map((contactId, index) => (
           <ChatWindow
