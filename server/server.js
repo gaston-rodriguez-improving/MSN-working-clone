@@ -49,6 +49,21 @@ async function member(conversationId, userId) { return !!(await db.query('SELECT
 async function messageView(row) { return { id: row.id, chatId: row.conversation_id, senderId: row.sender_id, sender: publicUser(await getUser(row.sender_id)), content: row.content, drawAttention: !!row.draw_attention, winks: !!row.winks, createdAt: row.created_at }; }
 async function messageViews(rows) { return Promise.all(rows.map(messageView)); }
 const asyncRoute = handler => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+const normalizeContactPreferences = preferences => {
+  const categories = (Array.isArray(preferences?.categories) ? preferences.categories : [])
+    .filter(category => category?.id && category?.name)
+    .slice(0, 200)
+    .map(category => ({ id: String(category.id).slice(0, 80), name: String(category.name).trim().slice(0, 40) }))
+    .filter(category => category.name);
+  const categoryIds = new Set(categories.map(category => category.id));
+  const favorites = [...new Set((Array.isArray(preferences?.favorites) ? preferences.favorites : [])
+    .map(String).filter(id => /^\d+$/.test(id)))].slice(0, 10000);
+  const assignments = Object.fromEntries(Object.entries(preferences?.assignments && typeof preferences.assignments === 'object' ? preferences.assignments : {})
+    .filter(([contactId, ids]) => /^\d+$/.test(contactId) && Array.isArray(ids))
+    .slice(0, 10000)
+    .map(([contactId, ids]) => [contactId, [...new Set(ids.map(String).filter(id => categoryIds.has(id)))]]));
+  return { favorites, categories, assignments, layout: preferences?.layout === 'categories' ? 'categories' : 'status' };
+};
 async function initializeDatabase() {
   for (const key of ['DATABASE_HOST', 'DATABASE_NAME', 'DATABASE_USER', 'DATABASE_PASSWORD']) if (!process.env[key]) throw new Error(`${key} is required`);
   await db.query(fs.readFileSync(path.join(root, 'schema.sql'), 'utf8'));
@@ -67,6 +82,18 @@ async function verifyAzureAdIdToken(idToken) { if (!config.azureAdTenantId || !c
 async function uniqueUsername(email, name) { let display = String(name || '').normalize('NFC').replace(/[^\p{L}\p{N} ._'-]/gu, ' ').replace(/\s+/g, ' ').trim(); const comma = display.match(/^([^,]+),\s*(.+)$/); if (comma) display = `${comma[2]} ${comma[1]}`.replace(/\s+/g, ' ').trim(); const base = (display || String(email.split('@')[0]).replace(/[^a-zA-Z0-9._-]/g, '')).slice(0, 40).trim() || 'user'; let username = base; let suffix = 1; while ((await db.query('SELECT 1 FROM users WHERE username = $1 AND company_id = $2 AND event_id = $3', [username, config.companyId, config.eventId])).rows[0]) username = `${base}${suffix++}`; return username; }
 app.post('/auth/microsoft', asyncRoute(async (req, res) => { try { const claims = await verifyAzureAdIdToken(String(req.body?.id_token || '')); const email = String(claims.preferred_username || claims.email || '').trim().toLowerCase(); if (!email || !emailAllowed(email)) return res.status(403).json({ error: 'Your Microsoft account is not allowed' }); let user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user) { const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12); const username = await uniqueUsername(email, claims.name); const result = await db.query('INSERT INTO users (email, username, password_hash, company_id, event_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [email, username, passwordHash, config.companyId, config.eventId, 'online']); user = await getUser(result.rows[0].id); } else await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); res.status(200).json({ access_token: tokenFor(updated), user: publicUser(updated) }); } catch (error) { console.error('Microsoft Entra authentication failed:', error.message); res.status(401).json({ error: 'Microsoft sign-in failed. Check the Entra app configuration and try again.' }); } }));
 app.get('/auth/check-token', auth, (req, res) => res.json({ user: publicUser(req.user) }));
+app.get('/contact-preferences', auth, asyncRoute(async (req, res) => {
+  const row = (await db.query('SELECT preferences FROM user_contact_preferences WHERE user_id = $1', [req.user.id])).rows[0];
+  res.json({ exists: Boolean(row), preferences: normalizeContactPreferences(row?.preferences) });
+}));
+app.put('/contact-preferences', auth, asyncRoute(async (req, res) => {
+  const submitted = req.body?.preferences;
+  if (!submitted || typeof submitted !== 'object' || Array.isArray(submitted)) return res.status(400).json({ error: 'Contact preferences are required' });
+  const preferences = normalizeContactPreferences(submitted);
+  const result = await db.query(`INSERT INTO user_contact_preferences (user_id, preferences) VALUES ($1, $2::jsonb)
+    ON CONFLICT (user_id) DO UPDATE SET preferences = EXCLUDED.preferences, updated_at = CURRENT_TIMESTAMP RETURNING preferences`, [req.user.id, JSON.stringify(preferences)]);
+  res.json({ preferences: result.rows[0].preferences });
+}));
 app.get('/users', auth, asyncRoute(async (req, res) => { const search = `%${String(req.query.search || '').trim()}%`; const rows = (await db.query('SELECT * FROM users WHERE company_id = $1 AND event_id = $2 AND id != $3 AND (username ILIKE $4 OR email ILIKE $4) ORDER BY lower(username)', [config.companyId, config.eventId, req.user.id, search])).rows; res.json({ users: rows.map(publicUser) }); }));
 app.get('/friends', auth, asyncRoute(async (req, res) => { const rows = (await db.query("SELECT u.* FROM users u JOIN friend_requests fr ON u.id = CASE WHEN fr.sender_id = $1 THEN fr.recipient_id ELSE fr.sender_id END WHERE (fr.sender_id = $2 OR fr.recipient_id = $3) AND fr.status = 'accepted' AND u.company_id = $4 AND u.event_id = $5 ORDER BY lower(u.username)", [req.user.id, req.user.id, req.user.id, config.companyId, config.eventId])).rows; res.json({ users: rows.map(publicUser) }); }));
 const friendRequestView = row => ({ id: row.id, status: row.status, message: row.message, createdAt: row.created_at, user: publicUser(row.user) });

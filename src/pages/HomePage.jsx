@@ -18,6 +18,7 @@ import FriendInvitationModal from '../components/FriendInvitationModal';
 import CategoryModal from '../components/CategoryModal';
 import ContactListLayoutModal from '../components/ContactListLayoutModal';
 import { AuthContext } from '../contexts/AuthContext';
+import { getContactPreferences as getContactPreferencesRequest, saveContactPreferences as saveContactPreferencesRequest } from '../data/api';
 
 const emptyContactPreferences = { favorites: [], categories: [], assignments: {}, layout: 'status' };
 const contactPreferencesKey = (userId) => `msn-contact-preferences:${userId}`;
@@ -27,6 +28,8 @@ const matchesContact = (contact, query) => {
   return [contact.name, contact.username, contact.email, contact.message, contact.bio, contact.statusMessage, contact.status_message]
     .some((value) => String(value || '').toLocaleLowerCase().includes(normalizedQuery));
 };
+
+const hasContactPreferences = (preferences) => preferences.favorites.length || preferences.categories.length || Object.keys(preferences.assignments).length || preferences.layout === 'categories';
 
 const readContactPreferences = (userId) => {
   if (!userId) return emptyContactPreferences;
@@ -55,6 +58,8 @@ const HomePage = () => {
   const [showLayoutModal, setShowLayoutModal] = React.useState(false);
   const [contactSearch, setContactSearch] = React.useState('');
   const [storedContactPreferences, setStoredContactPreferences] = React.useState(() => ({ userId: user?.id, value: readContactPreferences(user?.id) }));
+  const contactPreferenceRevision = React.useRef(0);
+  const contactPreferenceSaveQueue = React.useRef(Promise.resolve());
   const friendMenuRef = React.useRef(null);
   const contactMenuRef = React.useRef(null);
   const friendMenuButtonRef = React.useRef(null);
@@ -95,8 +100,13 @@ const HomePage = () => {
   };
   const saveContactPreferences = (value) => {
     if (!user?.id) return;
+    contactPreferenceRevision.current += 1;
     localStorage.setItem(contactPreferencesKey(user.id), JSON.stringify(value));
     setStoredContactPreferences({ userId: user.id, value });
+    contactPreferenceSaveQueue.current = contactPreferenceSaveQueue.current
+      .catch(() => {})
+      .then(() => saveContactPreferencesRequest(value))
+      .catch(() => {});
   };
   const showContactMenu = (event, target) => {
     const width = Math.min(240, window.innerWidth - 16);
@@ -172,7 +182,30 @@ const HomePage = () => {
   };
 
   React.useEffect(() => {
-    setStoredContactPreferences({ userId: user?.id, value: readContactPreferences(user?.id) });
+    let cancelled = false;
+    const userId = user?.id;
+    const localPreferences = readContactPreferences(userId);
+    const revisionAtLoad = contactPreferenceRevision.current;
+    setStoredContactPreferences({ userId, value: localPreferences });
+    if (!userId) return () => { cancelled = true; };
+
+    getContactPreferencesRequest().then(async ({ data }) => {
+      if (cancelled || contactPreferenceRevision.current !== revisionAtLoad) return;
+      let preferences = data.preferences || emptyContactPreferences;
+      if (!data.exists && hasContactPreferences(localPreferences)) {
+        preferences = localPreferences;
+        contactPreferenceSaveQueue.current = contactPreferenceSaveQueue.current
+          .catch(() => {})
+          .then(() => saveContactPreferencesRequest(preferences))
+          .catch(() => {});
+        await contactPreferenceSaveQueue.current;
+        if (cancelled || contactPreferenceRevision.current !== revisionAtLoad) return;
+      }
+      localStorage.setItem(contactPreferencesKey(userId), JSON.stringify(preferences));
+      setStoredContactPreferences({ userId, value: preferences });
+    }).catch(() => {});
+
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   React.useEffect(() => {
