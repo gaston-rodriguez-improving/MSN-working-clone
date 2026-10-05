@@ -10,6 +10,8 @@ import UnableToConnectModal from '../components/UnableToConnectModal';
 import { AuthContext } from '../contexts/AuthContext';
 import { signInWithMicrosoft } from '../utils/microsoftAuth';
 
+const SHOW_EMAIL_AUTH = false;
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const [showUnableToConnectModal, setShowUnableToConnectModal] = useState(false);
@@ -180,11 +182,13 @@ const LoginPage = () => {
             </fieldset>
 
             <div className="mt-4 flex w-[calc(100%-2rem)] max-w-[714px] flex-wrap items-center justify-center gap-2">
-              <button type="submit" disabled={isSubmitting}>{isRegistering ? 'Create account' : 'Sign in'}</button>
-              <button type="button" disabled={isSubmitting} onClick={() => setIsRegistering((value) => !value)}>
-                {isRegistering ? 'I already have an account' : 'Create an account'}
-              </button>
-              <span aria-hidden="true">OR</span>
+              {SHOW_EMAIL_AUTH && <>
+                <button type="submit" disabled={isSubmitting}>{isRegistering ? 'Create account' : 'Sign in'}</button>
+                <button type="button" disabled={isSubmitting} onClick={() => setIsRegistering((value) => !value)}>
+                  {isRegistering ? 'I already have an account' : 'Create an account'}
+                </button>
+                <span aria-hidden="true">OR</span>
+              </>}
               <button type="button" disabled={isSubmitting} onClick={handleMicrosoftAuth} className="flex items-center gap-2">
                 Sign In with Microsoft
                 <span className="microsoft-logo" aria-label="Microsoft" role="img">
