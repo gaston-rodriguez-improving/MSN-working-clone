@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
+import { ChatContext } from '../contexts/ChatContext';
 import online from '/assets/status/online-dot.png';
 import busy from '/assets/status/busy-dot.png';
 import away from '/assets/status/away-dot.png';
@@ -63,6 +64,7 @@ export const ContactCategoryGroup = ({ title, count, children }) => {
 
 const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
   const navigate = useNavigate();
+  const hasUnread = !!useContext(ChatContext)?.unread?.[contact.id];
 
   const whichStatus = (contactStatus) => {
     switch (contactStatus) {
@@ -96,7 +98,7 @@ const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
       <div className="mt-1 w-2">
         <img src={whichStatus(contact.status)} alt="contact-status" />
       </div>
-      <span className="flex gap-1" dangerouslySetInnerHTML={{ __html: replaceEmoticons(contact.name || contact.username) }}></span>
+      <span className={`flex gap-1 ${hasUnread ? 'font-bold' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(contact.name || contact.username) }}></span>
       <span>{!statusMessage ? null : '-'}</span>
       <span className="flex gap-1 text-gray-400" dangerouslySetInnerHTML={{ __html: replaceEmoticons(statusMessage) }}></span>
     </div>

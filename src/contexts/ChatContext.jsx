@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { AuthContext } from './AuthContext';
 import { useToast } from './ToastContext';
 import sounds from '../imports/sounds';
-import { getChatMessages, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
+import { getChatMessages, getChats, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
 
 export const ChatContext = createContext(null);
 
@@ -18,6 +18,8 @@ export function ChatProvider({ children }) {
   const [hasMoreMessages, setHasMoreMessages] = useState({});
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatRequest, setChatRequest] = useState(null);
+  const [unread, setUnread] = useState({});
+  const unreadRef = useRef({});
   const socketRef = useRef(null);
   const hasConnectedSocket = useRef(false);
   const contactsRef = useRef([]);
@@ -44,6 +46,7 @@ export function ChatProvider({ children }) {
   const requestsRef = useRef([]);
   useEffect(() => { requestsRef.current = friendRequests; }, [friendRequests]);
   useEffect(() => { activeRef.current = activeChatId; }, [activeChatId]);
+  useEffect(() => { unreadRef.current = unread; }, [unread]);
 
   const appendMessage = useCallback((message) => {
     if (messageIds.current.has(message.id)) return false;
@@ -88,16 +91,32 @@ export function ChatProvider({ children }) {
     if (!user) return undefined;
     hasConnectedSocket.current = false;
     let closed = false; let socket; let retryTimer;
+    const refreshUnread = (notify) => getChats().then(({ data }) => {
+      const next = {}; let increased = null;
+      (data.conversations || []).forEach((chat) => {
+        if (chat.chatId === activeRef.current && !document.hidden) { if (chat.unreadCount > 0) resetUnread(chat.chatId).catch(() => {}); return; }
+        if (chat.unreadCount > 0) { next[chat.userId] = chat.unreadCount; if (chat.unreadCount > (unreadRef.current[chat.userId] || 0)) increased = chat; }
+      });
+      unreadRef.current = next; setUnread(next);
+      if (notify && increased) showNotification({ title: increased.username, text: 'sent you a message.', avatar: increased.avatar, onOpen: () => setChatRequest({ id: increased.userId, at: Date.now() }) });
+    }).catch(() => {});
+    const reviveConnection = () => {
+      if (closed || document.hidden) return;
+      if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) { clearTimeout(retryTimer); connect(); }
+      else if (socket.readyState === WebSocket.OPEN) {
+        refreshUnread(true);
+      }
+    };
     const connect = () => {
     const token = localStorage.getItem('messenger_token');
     if (!token) return;
     socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(token)}`);
     socketRef.current = socket;
     socket.onopen = () => {
-      if (!hasConnectedSocket.current) {
-        hasConnectedSocket.current = true;
-        return;
-      }
+      const isReconnect = hasConnectedSocket.current;
+      hasConnectedSocket.current = true;
+      refreshUnread(isReconnect);
+      if (!isReconnect) return;
       Promise.all([getFriends(), getFriendRequests()]).then(([usersResponse, requestsResponse]) => {
         const list = (usersResponse.data.users || []).map(toContact);
         setContacts((prev) => { const known = new Set(prev.map((contact) => contact.id)); return [...prev, ...list.filter((contact) => !known.has(contact.id))]; });
@@ -118,7 +137,9 @@ export function ChatProvider({ children }) {
             pendingMessageEffects.current.set(Number(payload.chatId), [...pending, payload]);
             setChatRequest({ id: payload.senderId, at: Date.now() });
           }
-          const isActiveChat = payload.chatId === activeRef.current;
+          const isActiveChat = payload.chatId === activeRef.current && !document.hidden;
+          if (isActiveChat) resetUnread(payload.chatId).catch(() => {});
+          else if (!opensChatForEffect) setUnread((prev) => ({ ...prev, [payload.senderId]: (prev[payload.senderId] || 0) + 1 }));
           if (!isEffect && isActiveChat) playSound(sounds.newmessage);
           const notify = (sender) => {
             if (!sender || isActiveChat || opensChatForEffect) return;
@@ -146,7 +167,10 @@ export function ChatProvider({ children }) {
     };
     };
     connect();
-    return () => { closed = true; clearTimeout(retryTimer); socket?.close(); socketRef.current = null; };
+    document.addEventListener('visibilitychange', reviveConnection);
+    window.addEventListener('online', reviveConnection);
+    window.addEventListener('focus', reviveConnection);
+    return () => { closed = true; clearTimeout(retryTimer); document.removeEventListener('visibilitychange', reviveConnection); window.removeEventListener('online', reviveConnection); window.removeEventListener('focus', reviveConnection); socket?.close(); socketRef.current = null; };
   }, [user?.id, appendMessage, showNotification, playSound]);
 
   const sendFriendInvitation = useCallback(async (userId, message) => {
@@ -166,10 +190,11 @@ export function ChatProvider({ children }) {
     const { data } = await startConversation(contact.id);
     const chatId = data.chatId || data.id;
     setActiveChatId(chatId);
+    setUnread((prev) => { if (!prev[contact.id]) return prev; const { [contact.id]: _, ...rest } = prev; return rest; });
     await resetUnread(chatId).catch(() => {});
     return { contact, chatId };
   }, []);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
 }

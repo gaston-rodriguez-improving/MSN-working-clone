@@ -187,8 +187,13 @@ app.patch('/users/avatar', auth, asyncRoute((req, res) => updateUser(req, res, '
 app.patch('/users/username', auth, asyncRoute((req, res) => updateUser(req, res, 'username', 'user_username_update')));
 app.use((error, _req, res, next) => { if (res.headersSent) return next(error); res.status(500).json({ error: 'Internal server error' }); });
 const server = http.createServer(app); const wss = new WebSocketServer({ server, path: '/ws' });
+const heartbeat = setInterval(() => { for (const client of wss.clients) { if (client.isAlive === false) { client.terminate(); continue; } client.isAlive = false; client.ping(); } }, 30000);
+heartbeat.unref();
+wss.on('close', () => clearInterval(heartbeat));
 wss.on('connection', (socket, req) => {
   let user;
+  socket.isAlive = true;
+  socket.on('pong', () => { socket.isAlive = true; });
   socket.on('close', () => { if (!user) return; sockets.get(user.id)?.delete(socket); if (!sockets.get(user.id)?.size) { sockets.delete(user.id); db.query("UPDATE users SET status = 'offline' WHERE id = $1", [user.id]).then(async () => broadcastUser('user_status_update', await getUser(user.id))).catch(() => {}); } });
   (async () => {
     const token = new URL(req.url, `http://${req.headers.host}`).searchParams.get('token'); const claims = jwt.verify(token, config.jwtSecret); user = await getUser(Number(claims.sub)); if (!user || socket.readyState !== WebSocket.OPEN) throw new Error();
