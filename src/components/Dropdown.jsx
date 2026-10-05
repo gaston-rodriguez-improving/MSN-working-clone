@@ -1,3 +1,4 @@
+import { formatName } from '../helpers/stripHtml';
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import arrow from '/assets/general/arrow.png';
@@ -88,7 +89,7 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
           )}
 
           {showUserName && displayName && (
-            <p className="text-[20px] my-[-5px] glow whitespace-nowrap" dangerouslySetInnerHTML={{ __html: replaceEmoticons(displayName) }} />
+            <p className="text-[20px] my-[-5px] glow whitespace-nowrap" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(displayName)) }} />
           )}
 
           <p className="glow">({selectedOption.label})</p>

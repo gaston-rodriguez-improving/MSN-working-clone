@@ -1,3 +1,4 @@
+import { formatName } from '../helpers/stripHtml';
 // UserInformation.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import AvatarSmall from '../components/AvatarSmall';
@@ -107,7 +108,7 @@ const UserInformation = () => {
                 <span
                   className="inline"
                   dangerouslySetInnerHTML={{
-                    __html: replaceEmoticons(message),
+                    __html: replaceEmoticons(formatName(message, 80)),
                   }}
                 ></span>
               )}

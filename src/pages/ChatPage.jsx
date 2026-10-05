@@ -275,7 +275,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
           onPointerDown={(event) => startWindowInteraction(event, 'drag')}
         >
           <img src={contactChatIcon} alt="" />
-          <p className="flex gap-1" dangerouslySetInnerHTML={{ __html: replaceEmoticons(contact.name) }}></p>
+          <p className="flex gap-1" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name)) }}></p>
           <p>&lt;{contact.email}&gt;</p>
           <div className="ml-auto flex items-center gap-1">
             {onMinimize && (
@@ -339,7 +339,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                 <p
                   className="flex gap-1 text-lg"
                   dangerouslySetInnerHTML={{
-                    __html: replaceEmoticons(contact.name),
+                    __html: replaceEmoticons(formatName(contact.name)),
                   }}
                 ></p>
                 <p className="ml-1 capitalize">({contact.status})</p>
@@ -377,7 +377,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                               <p
                                 className="flex gap-1"
                                 dangerouslySetInnerHTML={{
-                                  __html: replaceEmoticons(user?.username || user?.email || 'You'),
+                                  __html: replaceEmoticons(formatName(user?.username || user?.email || 'You')),
                                 }}
                               />
                               <p className="ml-1">says:</p>
@@ -404,7 +404,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                               <p
                                 className="flex gap-1"
                                 dangerouslySetInnerHTML={{
-                                  __html: replaceEmoticons(contact.name),
+                                  __html: replaceEmoticons(formatName(contact.name)),
                                 }}
                               />
                               <p className="ml-1">says:</p>

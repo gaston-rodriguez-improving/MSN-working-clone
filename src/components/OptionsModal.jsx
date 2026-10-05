@@ -1,3 +1,4 @@
+import { stripHtml } from '../helpers/stripHtml';
 import React, { useContext, useState } from 'react';
 import '7.css/dist/7.scoped.css';
 import line from '/assets/general/subtitles_line_options.png';
@@ -34,6 +35,11 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
     if (!isModified && !usernameChanged) return true;
     if (!normalizedName) {
       setSaveError('Display name cannot be empty.');
+      return false;
+    }
+
+    if (stripHtml(normalizedName).length > 40 || normalizedName.length > 800) {
+      setSaveError('Display name is too long (max 40 visible characters).');
       return false;
     }
 
@@ -108,6 +114,7 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
                         type="text"
                         className="w-[145px] border border-black border-opacity-25 h-6 mt-1 outline-none"
                         value={name}
+                        maxLength={800}
                         onChange={handleNameChange}
                       />
                     </div>

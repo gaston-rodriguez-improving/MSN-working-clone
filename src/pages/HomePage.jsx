@@ -1,3 +1,4 @@
+import { stripHtml } from '../helpers/stripHtml';
 import React, { useContext } from 'react';
 import Background from '../components/Background';
 import SearchBar from '../components/SearchBar';
@@ -391,7 +392,7 @@ const HomePage = () => {
         >
           {contactMenu.type === 'contact' && (
             <>
-              <div className="border-b border-[#c5d4dc] px-2 py-1 text-[12px] font-semibold text-[#17364a]">{contactMenu.contact.name || contactMenu.contact.username}</div>
+              <div className="border-b border-[#c5d4dc] px-2 py-1 text-[12px] font-semibold text-[#17364a]">{stripHtml(contactMenu.contact.name || contactMenu.contact.username)}</div>
               <button type="button" role="menuitem" className="w-full rounded px-2 py-1 text-left text-[12px] text-[#17364a] hover:bg-[#d9effb]" onClick={() => { toggleFavorite(contactMenu.contact.id); setContactMenu(null); }}>
                 {favoriteIds.has(String(contactMenu.contact.id)) ? 'Remove from Favorites' : 'Add to Favorites'}
               </button>
@@ -435,9 +436,9 @@ const HomePage = () => {
               const contact = contacts.find((item) => item.id === Number(contactId));
               if (!contact) return null;
               return (
-                <button key={contactId} type="button" className="chat-taskbar-button flex h-8 max-w-48 min-w-36 items-center gap-2 rounded px-2 text-left text-[12px] text-[#17364a]" onClick={() => focusChat(contactId)} title={contact.name || contact.username}>
+                <button key={contactId} type="button" className="chat-taskbar-button flex h-8 max-w-48 min-w-36 items-center gap-2 rounded px-2 text-left text-[12px] text-[#17364a]" onClick={() => focusChat(contactId)} title={stripHtml(contact.name || contact.username)}>
                   <img src={contact.image || '/assets/usertiles/default.png'} alt="" className="h-5 w-5 shrink-0 rounded-sm object-cover" />
-                  <span className="truncate">{contact.name || contact.username}</span>
+                  <span className="truncate">{stripHtml(contact.name || contact.username)}</span>
                 </button>
               );
             })}

@@ -1,3 +1,4 @@
+import { formatName } from '../helpers/stripHtml';
 import { useContext, useState } from 'react';
 import { ChatContext } from '../contexts/ChatContext';
 import online from '/assets/status/online-dot.png';
@@ -98,9 +99,9 @@ const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
       <div className="mt-1 w-2">
         <img src={whichStatus(contact.status)} alt="contact-status" />
       </div>
-      <span className={`flex gap-1 ${hasUnread ? 'font-bold' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(contact.name || contact.username) }}></span>
+      <span className={`flex gap-1 ${hasUnread ? 'font-bold' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username)) }}></span>
       <span>{!statusMessage ? null : '-'}</span>
-      <span className="flex gap-1 text-gray-400" dangerouslySetInnerHTML={{ __html: replaceEmoticons(statusMessage) }}></span>
+      <span className="flex gap-1 text-gray-400" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(statusMessage, 80)) }}></span>
     </div>
   );
 };
