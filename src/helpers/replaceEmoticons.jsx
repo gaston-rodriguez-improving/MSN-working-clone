@@ -17,7 +17,7 @@ export const replaceEmoticons = (message) => {
   return String(message ?? '').replace(emoticonRegex, (match) => {
     const emoticonSrc = emoticons[match]; // Convert match to lowercase
     if (emoticonSrc) {
-      return `<span><img src="${emoticonSrc}" alt="${match}"/></span>`; // Return HTML string for the emoticon
+      return `<span><img class="inline-block align-middle" src="${emoticonSrc}" alt="${match}"/></span>`; // Return HTML string for the emoticon
     } else {
       return match; // Return the original match if no emoticon found
     }

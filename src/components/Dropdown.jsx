@@ -88,7 +88,7 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
           )}
 
           {showUserName && displayName && (
-            <p className="text-[20px] my-[-5px] glow" dangerouslySetInnerHTML={{ __html: replaceEmoticons(displayName) }} />
+            <p className="text-[20px] my-[-5px] glow whitespace-nowrap" dangerouslySetInnerHTML={{ __html: replaceEmoticons(displayName) }} />
           )}
 
           <p className="glow">({selectedOption.label})</p>

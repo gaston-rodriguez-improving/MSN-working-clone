@@ -105,7 +105,7 @@ const UserInformation = () => {
                 'Share a quick message...'
               ) : (
                 <span
-                  className="flex gap-1"
+                  className="inline"
                   dangerouslySetInnerHTML={{
                     __html: replaceEmoticons(message),
                   }}
