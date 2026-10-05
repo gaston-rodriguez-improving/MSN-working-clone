@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { AuthContext } from './AuthContext';
 import { useToast } from './ToastContext';
 import sounds from '../imports/sounds';
-import { getChatMessages, getChats, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
+import { getChatMessages, getUnreadChats, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
 
 export const ChatContext = createContext(null);
 
@@ -91,7 +91,7 @@ export function ChatProvider({ children }) {
     if (!user) return undefined;
     hasConnectedSocket.current = false;
     let closed = false; let socket; let retryTimer;
-    const refreshUnread = (notify) => getChats().then(({ data }) => {
+    const refreshUnread = (notify) => getUnreadChats().then(({ data }) => {
       const next = {}; let increased = null;
       (data.conversations || []).forEach((chat) => {
         if (chat.chatId === activeRef.current && !document.hidden) { if (chat.unreadCount > 0) resetUnread(chat.chatId).catch(() => {}); return; }

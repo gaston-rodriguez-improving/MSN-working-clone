@@ -58,4 +58,5 @@ CREATE TABLE IF NOT EXISTS unread_messages (
   PRIMARY KEY(conversation_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, id);
+CREATE INDEX IF NOT EXISTS idx_conversation_members_user ON conversation_members(user_id, conversation_id);
 CREATE INDEX IF NOT EXISTS idx_users_scope ON users(company_id, event_id);

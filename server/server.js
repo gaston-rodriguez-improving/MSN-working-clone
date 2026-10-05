@@ -142,10 +142,16 @@ app.post('/conversations', auth, asyncRoute(async (req, res) => {
   } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
   res.json({ id: chat.id, chatId: chat.id, conversation: { id: chat.id, user: publicUser(other) } });
 }));
+const chatSelect = 'SELECT c.id AS "chatId", u.id AS "userId", u.email, u.username, u.status, u.bio, u.avatar, u.banner, COALESCE(um.count, 0) AS "unreadCount" FROM conversation_members me JOIN conversations c ON c.id = me.conversation_id JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id != me.user_id JOIN users u ON u.id = cm.user_id LEFT JOIN unread_messages um ON um.conversation_id = c.id AND um.user_id = me.user_id WHERE me.user_id = $1 AND c.company_id = $2 AND c.event_id = $3';
 app.get('/messages/chats', auth, asyncRoute(async (req, res) => {
-  const chats = (await db.query('SELECT c.id AS "chatId", u.id AS "userId", u.email, u.username, u.status, u.bio, u.avatar, u.banner, (SELECT count FROM unread_messages um WHERE um.conversation_id = c.id AND um.user_id = $1) AS "unreadCount" FROM conversations c JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id != $2 JOIN users u ON u.id = cm.user_id WHERE c.company_id = $3 AND c.event_id = $4', [req.user.id, req.user.id, config.companyId, config.eventId])).rows;
-  const unreadCounts = Object.fromEntries(chats.map(c => [c.chatId, c.unreadCount || 0]));
-  res.json({ chats: {}, unreadCounts, conversations: chats });
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 50);
+  const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+  const rows = (await db.query(`${chatSelect} ORDER BY c.id DESC LIMIT $4 OFFSET $5`, [req.user.id, config.companyId, config.eventId, limit + 1, offset])).rows;
+  res.json({ conversations: rows.slice(0, limit), hasMore: rows.length > limit });
+}));
+app.get('/messages/unread', auth, asyncRoute(async (req, res) => {
+  const conversations = (await db.query(`${chatSelect} AND um.count > 0`, [req.user.id, config.companyId, config.eventId])).rows;
+  res.json({ conversations });
 }));
 app.get('/messages/chat/:chatId', auth, asyncRoute(async (req, res) => {
   const id = Number(req.params.chatId);

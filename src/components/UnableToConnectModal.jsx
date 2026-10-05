@@ -6,7 +6,7 @@ import info from '/assets/general/info.png';
 const UnableToConnectModal = ({ setShowUnableToConnectModal, errorMessage }) => {
   return (
     <>
-      <div className="justify-center items-center flex overflow-x-hidden overflow-y-auto fixed inset-0 z-50 outline-none focus:outline-none">
+      <div className="justify-center items-center flex overflow-x-hidden overflow-y-auto fixed inset-0 z-[1100] outline-none focus:outline-none">
         <div className="relative w-auto my-6 mx-auto max-w-3xl">
           {/*content*/}
           <div className="msn-font rounded-lg shadow-lg relative flex flex-col w-full bg-white outline-none focus:outline-none bg-gradient-to-t from-[#c3d4ec46] via-white to-[#c3d4ec3a]">
@@ -48,7 +48,7 @@ const UnableToConnectModal = ({ setShowUnableToConnectModal, errorMessage }) => 
           </div>
         </div>
       </div>
-      <div className="opacity-25 fixed inset-0 z-40 bg-black"></div>
+      <div className="opacity-25 fixed inset-0 z-[1050] bg-black"></div>
     </>
   );
 };
