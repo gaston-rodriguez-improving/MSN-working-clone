@@ -52,7 +52,7 @@ const AddFriendModal = ({ onClose, onSend }) => {
         <p className="mb-2 text-[18px] text-[#1D2F7F]">Add someone to your contacts</p>
         <p className="mb-2">Search by Messenger name or email address:</p>
         <input autoFocus value={search} onChange={(event) => { setSearch(event.target.value); setSelectedUser(null); setError(''); }} placeholder="Search for a person" className="searchbar w-full rounded border border-[#9bb7c9] bg-white px-2 py-1 outline-none" />
-        <div className="mt-2 min-h-[58px] rounded border border-[#c5d5df] bg-[#f7fbfd] p-1">
+        <div className="mt-2 min-h-[58px] max-h-[240px] overflow-y-auto rounded border border-[#c5d5df] bg-[#f7fbfd] p-1">
           {loading && <p className="p-2 text-gray-500">Searching...</p>}
           {!loading && search.trim() && !users.length && <p className="p-2 text-gray-500">No people found.</p>}
           {users.map((person) => <button type="button" key={person.id} onClick={() => setSelectedUser(person)} className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-[#d9effb] ${selectedUser?.id === person.id ? 'bg-[#c6e8fa]' : ''}`}>

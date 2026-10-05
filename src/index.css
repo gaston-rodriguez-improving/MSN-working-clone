@@ -199,7 +199,7 @@ button:disabled {
   position: fixed;
   right: 12px;
   bottom: 12px;
-  z-index: 1000;
+  z-index: 1200;
   width: 234px;
   padding: 7px 8px 8px;
   color: #243746;

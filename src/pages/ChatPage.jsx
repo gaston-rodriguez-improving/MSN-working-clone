@@ -23,6 +23,7 @@ import chatIconsBackground from '/assets/background/chat_icons_background.png';
 import chatPointBackground from '/assets/background/chat_background_point.png';
 import chatIconsSeparator from '/assets/background/chat_icons_separator.png';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
+import { formatName } from '../helpers/stripHtml';
 
 const EMPTY_MESSAGES = [];
 
@@ -351,7 +352,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                     const previousMessage = messages[index - 1];
                     const isNudge = message.drawAttention || message.content === nudgeMessage;
                     const previousIsNudge = previousMessage?.drawAttention || previousMessage?.content === nudgeMessage;
-                    const nudgeText = message.senderId === user?.id ? nudgeMessage : `${contact.name} has sent you a nudge.`;
+                    const nudgeText = message.senderId === user?.id ? formatName(nudgeMessage) : `${formatName(contact.name)} has sent you a nudge.`;
                     const winkIcon = winks_icons[`${message.content}_icon`];
 
                     return (
@@ -359,14 +360,14 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                         {isNudge && (
                           <div>
                             {!previousIsNudge && <p>━━━━</p>}
-                            <p className="ml-1">{nudgeText}</p>
+                            <p className="ml-1" dangerouslySetInnerHTML={{ __html: nudgeText }} />
                             <p>━━━━</p>
                           </div>
                         )}
                         {message.winks && (
                           <div className="ml-1 flex items-center gap-2">
                             {winkIcon && <img src={winkIcon} alt={message.content} className="h-8 w-8 object-contain" />}
-                            <p>{message.senderId === user?.id ? 'You sent a wink.' : `${contact.name} sent you a wink.`}</p>
+                            <p dangerouslySetInnerHTML={{ __html: message.senderId === user?.id ? 'You sent a wink.' : `${formatName(contact.name)} sent you a wink.` }} />
                           </div>
                         )}
 

@@ -1,3 +1,4 @@
+import { formatName } from '../helpers/stripHtml';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import sounds from '../imports/sounds';
 
@@ -29,7 +30,7 @@ function RetroNotification({ title, text, avatar, actionLabel = 'Open chat', onO
   return <div className="retro-notification" role="status" onClick={() => { onOpen?.(); onClose(); }}>
     <button className="retro-notification-close" aria-label="Close notification" onClick={(event) => { event.stopPropagation(); onClose(); }}>×</button>
     <div className="retro-notification-header"><img src="/assets/general/wlm-icon.png" alt="" /> Windows Live Messenger</div>
-    <div className="retro-notification-body"><div className="retro-notification-avatar"><img src={image} alt="" /></div><div><strong>{title}</strong><p>{text}</p></div></div>
+    <div className="retro-notification-body"><div className="retro-notification-avatar"><img src={image} alt="" /></div><div><strong className="break-words" dangerouslySetInnerHTML={{ __html: formatName(title) }} /><p>{text}</p></div></div>
     <button className="retro-notification-action" onClick={(event) => { event.stopPropagation(); onOpen?.(); onClose(); }}>{actionLabel}</button>
   </div>;
 }
