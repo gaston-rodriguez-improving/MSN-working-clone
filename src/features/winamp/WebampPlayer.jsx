@@ -5,7 +5,7 @@ import { YouTubeMediaAdapter, videoIdFromUrl } from './YouTubeMediaAdapter';
 import { toWebampTrack } from './tracks';
 import { planSharedPlaylistSync, selectedSharedTracksForRemoval } from './sharedPlaylistSync';
 
-export default function WebampPlayer({ bridge, tracks, active, onPlaybackState, onTrackSelected, onError, onReady, onCatalogRequest, onRemoveTrack, onRemoveBlocked, onFocus }) {
+export default function WebampPlayer({ bridge, tracks, active, onPlaybackState, onTrackSelected, onError, onReady, onCatalogRequest, onNewFolder, onRemoveTrack, onRemoveBlocked, onFocus }) {
   const mountRef = useRef(null);
   const webampRef = useRef(null);
   const stateCallbackRef = useRef(onPlaybackState);
@@ -13,6 +13,7 @@ export default function WebampPlayer({ bridge, tracks, active, onPlaybackState, 
   const errorCallbackRef = useRef(onError);
   const readyCallbackRef = useRef(onReady);
   const catalogCallbackRef = useRef(onCatalogRequest);
+  const newFolderCallbackRef = useRef(onNewFolder);
   const removeCallbackRef = useRef(onRemoveTrack);
   const blockedCallbackRef = useRef(onRemoveBlocked);
   const localTracksRef = useRef(new Map());
@@ -23,6 +24,7 @@ export default function WebampPlayer({ bridge, tracks, active, onPlaybackState, 
   errorCallbackRef.current = onError;
   readyCallbackRef.current = onReady;
   catalogCallbackRef.current = onCatalogRequest;
+  newFolderCallbackRef.current = onNewFolder;
   removeCallbackRef.current = onRemoveTrack;
   blockedCallbackRef.current = onRemoveBlocked;
 
@@ -95,6 +97,14 @@ export default function WebampPlayer({ bridge, tracks, active, onPlaybackState, 
     }).catch((error) => errorCallbackRef.current?.(error));
 
     const requestCatalog = (event) => {
+      const listAction = event.target.closest('#playlist-list-menu .new-list, #playlist-list-menu .save-list');
+      if (listAction) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (listAction.classList.contains('new-list')) newFolderCallbackRef.current?.();
+        // Shared and private playlists persist through the API; never export a file.
+        return;
+      }
       const playButton = event.target.closest('#play, .playlist-play-button');
       const playlist = webamp.getPlaylistTracks();
       if (event.target.closest('#eject, #playlist-add-menu') || (playButton && !playlist.length)) {

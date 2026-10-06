@@ -358,7 +358,7 @@ export default function WinampPage() {
           <img src="/assets/winamp/winamp-icon.png" alt="" />
           <span>Winamp</span>
         </button>
-        <WebampPlayer key={folderId || 'loading'} bridge={bridge} tracks={tracks} active={true} onFocus={() => setActiveWindow('webamp')} onPlaybackState={publishPlaying} onTrackSelected={setSelectedTrack} onReady={setPlayerControls} onCatalogRequest={openAddDialog} onRemoveTrack={handleRemoveTrack} onRemoveBlocked={(reason) => setNotice(reason)} onError={(value) => setError(value.message || String(value))} />
+        <WebampPlayer key={folderId || 'loading'} bridge={bridge} tracks={tracks} active={true} onFocus={() => setActiveWindow('webamp')} onPlaybackState={publishPlaying} onTrackSelected={setSelectedTrack} onReady={setPlayerControls} onCatalogRequest={openAddDialog} onNewFolder={() => { setFolderError(''); setFolderDialogOpen(true); }} onRemoveTrack={handleRemoveTrack} onRemoveBlocked={(reason) => setNotice(reason)} onError={(value) => setError(value.message || String(value))} />
 
         <section hidden={!mediaOpen} ref={mediaWindowRef} className={`winamp-media-window ${mode === 'effects' ? 'is-effects' : ''}`} aria-label="YouTube media window" onPointerDownCapture={() => setActiveWindow('video')}>
           <div className="winamp-window-title" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={() => { dragRef.current = null; }}>
