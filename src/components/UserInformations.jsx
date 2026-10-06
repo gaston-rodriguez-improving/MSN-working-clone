@@ -11,11 +11,10 @@ import { updateBio } from '../data/api';
 import { ChatContext } from '../contexts/ChatContext';
 import { AuthContext } from '../contexts/AuthContext';
 import ListeningStatus from './ListeningStatus';
-import { listeningEnabled } from '../features/musicConfig';
 
 const UserInformation = () => {
   const { user: account } = useContext(AuthContext);
-  const { listeningActivities, listeningSharing, setListeningSharing } = useContext(ChatContext);
+  const { listeningActivities } = useContext(ChatContext);
   const [user, setUser] = useState({
     message: account?.bio ?? localStorage.getItem('message') ?? '',
     status: localStorage.getItem('status') || 'Available',
@@ -125,10 +124,6 @@ const UserInformation = () => {
             <img src={arrow} alt="arrow icon" />
           </div>
         </div>
-        {listeningEnabled && <label className="mt-1 flex items-center gap-1 text-[11px] text-[#24466a]">
-          <input type="checkbox" checked={listeningSharing} onChange={(event) => setListeningSharing(event.target.checked).catch(() => {})} />
-          Share what I’m listening to with friends
-        </label>}
       </div>
       {showChangePictureModal && <ChangeDisplayPictureModal setShowChangePictureModal={setShowChangePictureModal} />}
     </div>
