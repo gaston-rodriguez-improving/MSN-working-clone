@@ -51,6 +51,7 @@ const HomePage = () => {
   const { activeChatId, unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, sendFriendInvitation, respondToFriendInvitation, setActiveChatId } = useContext(ChatContext);
   const [openChatIds, setOpenChatIds] = React.useState([]);
   const [minimizedChatIds, setMinimizedChatIds] = React.useState([]);
+  const [autoOpenedChatIds, setAutoOpenedChatIds] = React.useState([]);
   const [showAddFriend, setShowAddFriend] = React.useState(false);
   const [showFriendMenu, setShowFriendMenu] = React.useState(false);
   const [contactMenu, setContactMenu] = React.useState(null);
@@ -66,6 +67,7 @@ const HomePage = () => {
   const incomingRequests = friendRequests.filter((request) => request.direction !== 'outgoing');
   const contactPreferences = storedContactPreferences.userId === user?.id ? storedContactPreferences.value : emptyContactPreferences;
   const focusChat = (contactId) => {
+    setAutoOpenedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
     setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
     setOpenChatIds((currentIds) => {
       if (currentIds[currentIds.length - 1] === contactId) return currentIds;
@@ -231,6 +233,9 @@ const HomePage = () => {
 
   React.useEffect(() => {
     if (!chatRequest) return;
+    setAutoOpenedChatIds((currentIds) => chatRequest.autoOpen
+      ? currentIds.includes(chatRequest.id) ? currentIds : [...currentIds, chatRequest.id]
+      : currentIds.filter((id) => id !== chatRequest.id));
     setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== chatRequest.id));
     setOpenChatIds((currentIds) => currentIds.includes(chatRequest.id)
       ? [...currentIds.filter((id) => id !== chatRequest.id), chatRequest.id]
@@ -266,6 +271,7 @@ const HomePage = () => {
   const closeChat = (contactId, conversationId) => {
     setOpenChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
     setMinimizedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
+    setAutoOpenedChatIds((currentIds) => currentIds.filter((id) => id !== contactId));
     if (conversationId === activeChatId) setActiveChatId(null);
   };
 
@@ -425,6 +431,7 @@ const HomePage = () => {
             key={contactId}
             contactId={contactId}
             isMinimized={minimizedChatIds.includes(contactId)}
+            isAutoOpened={autoOpenedChatIds.includes(contactId)}
             onClose={(conversationId) => closeChat(contactId, conversationId)}
             onFocus={() => focusChat(contactId)}
             onMinimize={(conversationId) => minimizeChat(contactId, conversationId)}

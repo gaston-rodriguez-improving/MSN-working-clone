@@ -28,7 +28,7 @@ import ListeningStatus from '../components/ListeningStatus';
 
 const EMPTY_MESSAGES = [];
 
-export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimized = false, windowIndex = 0 }) => {
+export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimized = false, isAutoOpened = false, windowIndex = 0 }) => {
   const { id: routeId } = useParams();
   const id = contactId ?? routeId;
   const [shaking, setShaking] = useState(false);
@@ -49,6 +49,8 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   const remoteTypingTimeoutRef = useRef(null);
   const typingSentRef = useRef(false);
   const lastTypingSentAtRef = useRef(0);
+  const isAutoOpenedRef = useRef(isAutoOpened);
+  isAutoOpenedRef.current = isAutoOpened;
   const [windowBounds, setWindowBounds] = useState(null);
   const navigate = useNavigate();
   const closeWindow = () => {
@@ -72,18 +74,18 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
 
   useEffect(() => {
     let cancelled = false;
-    if (id) openConversation(id).then(result => { if (!cancelled && result) { setConversationId(result.chatId); setActiveChatId(result.chatId); } });
+    if (id) openConversation(id, { markRead: !isAutoOpenedRef.current }).then(result => { if (!cancelled && result) { setConversationId(result.chatId); if (!isAutoOpenedRef.current) setActiveChatId(result.chatId); } });
     return () => { cancelled = true; };
   }, [id, openConversation, setActiveChatId]);
   useEffect(() => {
     if (conversationId) loadMessages(conversationId).catch(() => {});
   }, [conversationId, loadMessages]);
   useEffect(() => {
-    if (!isMinimized && conversationId) {
+    if (!isMinimized && !isAutoOpened && conversationId) {
       setActiveChatId(conversationId);
       markConversationRead(Number(id), conversationId);
     }
-  }, [id, isMinimized, conversationId, markConversationRead, setActiveChatId]);
+  }, [id, isMinimized, isAutoOpened, conversationId, markConversationRead, setActiveChatId]);
   useEffect(() => {
     if (!conversationId || isMinimized) return undefined;
     return subscribeToMessageEffects(conversationId, (message) => {
@@ -303,7 +305,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
     <div
       ref={windowRef}
       onPointerDown={focusWindow}
-      className={`msn-font chat-window pointer-events-auto fixed w-[min(720px,calc(100vw-24px))] h-[min(680px,calc(100vh-24px))] overflow-hidden rounded-lg border border-[#55758c] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] bg-no-repeat bg-[length:100%_100px] ${shaking ? 'nudge' : ''} ${isMinimized ? 'hidden' : ''}`}
+      className={`msn-font chat-window pointer-events-auto fixed w-[min(720px,calc(100vw-24px))] h-[min(680px,calc(100vh-24px))] overflow-hidden rounded-lg border border-[#55758c] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] bg-no-repeat bg-[length:100%_100px] ${needsAttention ? 'chat-window-attention' : ''} ${shaking ? 'nudge' : ''} ${isMinimized ? 'hidden' : ''}`}
       style={{
         backgroundImage: `url(${bg})`,
         ...(windowBounds
@@ -329,7 +331,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
       ))}
       <div className="flex flex-col w-full font-sans text-base h-full">
         <div
-          className={`chat-window-titlebar flex items-center w-full h-[31.4px] shrink-0 bg-white p-2 gap-2 cursor-move ${needsAttention ? 'chat-window-attention' : ''}`}
+          className="chat-window-titlebar flex items-center w-full h-[31.4px] shrink-0 bg-white p-2 gap-2 cursor-move"
           onPointerDown={(event) => startWindowInteraction(event, 'drag')}
         >
           <img src={contactChatIcon} alt="" />

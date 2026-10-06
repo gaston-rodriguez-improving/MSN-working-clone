@@ -246,11 +246,14 @@ export function ChatProvider({ children }) {
           else if (opensChatForEffect) {
             const pending = pendingMessageEffects.current.get(Number(payload.chatId)) || [];
             pendingMessageEffects.current.set(Number(payload.chatId), [...pending, payload]);
-            setChatRequest({ id: payload.senderId, at: Date.now() });
+            setChatRequest({ id: payload.senderId, at: Date.now(), autoOpen: true });
           }
           const isActiveChat = payload.chatId === activeRef.current && !document.hidden;
           if (isActiveChat) resetUnread(payload.chatId).catch(() => {});
-          else if (!opensChatForEffect) setUnread((prev) => ({ ...prev, [payload.senderId]: (prev[payload.senderId] || 0) + 1 }));
+          else if (!opensChatForEffect) {
+            setUnread((prev) => ({ ...prev, [payload.senderId]: (prev[payload.senderId] || 0) + 1 }));
+            setChatRequest({ id: payload.senderId, at: Date.now(), autoOpen: true });
+          }
           if (!isEffect && isActiveChat) playSound(sounds.newmessage);
           const notify = (sender) => {
             if (!sender || isActiveChat || opensChatForEffect) return;
@@ -321,13 +324,15 @@ export function ChatProvider({ children }) {
     });
     if (chatId) resetUnread(chatId).catch(() => {});
   }, []);
-  const openConversation = useCallback(async (contactId) => {
+  const openConversation = useCallback(async (contactId, { markRead = true } = {}) => {
     const contact = contactsRef.current.find((item) => item.id === Number(contactId));
     if (!contact) return null;
     const { data } = await startConversation(contact.id);
     const chatId = data.chatId || data.id;
-    setActiveChatId(chatId);
-    markConversationRead(contact.id, chatId);
+    if (markRead) {
+      setActiveChatId(chatId);
+      markConversationRead(contact.id, chatId);
+    }
     return { contact, chatId };
   }, [markConversationRead]);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
