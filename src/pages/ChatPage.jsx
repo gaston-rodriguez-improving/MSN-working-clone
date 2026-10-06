@@ -31,11 +31,12 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   const id = contactId ?? routeId;
   const [shaking, setShaking] = useState(false);
   const [receivedWink, setReceivedWink] = useState(null);
+  const [contactIsTyping, setContactIsTyping] = useState(false);
   const [input, setInput] = useState('');
   const [lastMessageTime, setLastMessageTime] = useState(null);
   const user = JSON.parse(localStorage.getItem('messenger_user') || 'null');
   const { selectedEmoticon, setSelectedEmoticon } = useContext(EmoticonContext);
-  const { activeChatId, contacts, messages: conversations, hasMoreMessages, loadMessages, openConversation, setActiveChatId, subscribeToMessageEffects, playSound, send } = useContext(ChatContext);
+  const { activeChatId, unread, contacts, messages: conversations, hasMoreMessages, loadMessages, openConversation, markConversationRead, setActiveChatId, subscribeToMessageEffects, subscribeToServerEvents, sendSocketEvent, playSound, send } = useContext(ChatContext);
   const [conversationId, setConversationId] = useState(null);
   const messageContainerRef = useRef(null);
   const olderScrollAnchorRef = useRef(null);
@@ -43,6 +44,9 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   const windowRef = useRef(null);
   const interactionRef = useRef(null);
   const nudgeTimeoutRef = useRef(null);
+  const remoteTypingTimeoutRef = useRef(null);
+  const typingSentRef = useRef(false);
+  const lastTypingSentAtRef = useRef(0);
   const [windowBounds, setWindowBounds] = useState(null);
   const navigate = useNavigate();
   const closeWindow = () => {
@@ -52,12 +56,17 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   };
   const minimizeWindow = () => onMinimize?.(conversationId);
   const focusWindow = () => {
-    if (conversationId) setActiveChatId(conversationId);
+    if (conversationId) {
+      setActiveChatId(conversationId);
+      markConversationRead(Number(id), conversationId);
+    }
     onFocus?.();
     requestAnimationFrame(scrollToBottom);
   };
   const contact = contacts.find((item) => item.id === Number(id));
   const messages = conversations[conversationId] || EMPTY_MESSAGES;
+  const unreadCount = Number(unread[Number(id)] || 0);
+  const needsAttention = unreadCount > 0 && (activeChatId !== conversationId || document.hidden);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,8 +77,11 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
     if (conversationId) loadMessages(conversationId).catch(() => {});
   }, [conversationId, loadMessages]);
   useEffect(() => {
-    if (!isMinimized && conversationId) setActiveChatId(conversationId);
-  }, [isMinimized, conversationId, setActiveChatId]);
+    if (!isMinimized && conversationId) {
+      setActiveChatId(conversationId);
+      markConversationRead(Number(id), conversationId);
+    }
+  }, [id, isMinimized, conversationId, markConversationRead, setActiveChatId]);
   useEffect(() => {
     if (!conversationId || isMinimized) return undefined;
     return subscribeToMessageEffects(conversationId, (message) => {
@@ -83,6 +95,35 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
       if (message.winks) setReceivedWink(message);
     });
   }, [conversationId, isMinimized, playSound, subscribeToMessageEffects, user?.id]);
+  useEffect(() => {
+    if (!conversationId) return undefined;
+    const clearContactTyping = () => {
+      clearTimeout(remoteTypingTimeoutRef.current);
+      remoteTypingTimeoutRef.current = null;
+      setContactIsTyping(false);
+    };
+    const unsubscribe = subscribeToServerEvents(({ type, payload }) => {
+      if (Number(payload?.chatId) !== Number(conversationId)) return;
+      if (type === 'message') {
+        clearContactTyping();
+        return;
+      }
+      if (type !== 'typing' || Number(payload.senderId) === Number(user?.id)) return;
+      clearTimeout(remoteTypingTimeoutRef.current);
+      setContactIsTyping(Boolean(payload.isTyping));
+      if (payload.isTyping) remoteTypingTimeoutRef.current = setTimeout(clearContactTyping, 10000);
+    });
+    return () => {
+      unsubscribe();
+      clearTimeout(remoteTypingTimeoutRef.current);
+    };
+  }, [conversationId, subscribeToServerEvents, user?.id]);
+  useEffect(() => () => {
+    if (typingSentRef.current && conversationId) sendSocketEvent('typing', { chatId: Number(conversationId), isTyping: false });
+    typingSentRef.current = false;
+    lastTypingSentAtRef.current = 0;
+    clearTimeout(remoteTypingTimeoutRef.current);
+  }, [conversationId, sendSocketEvent]);
   useEffect(() => () => clearTimeout(nudgeTimeoutRef.current), []);
   useEffect(() => { if (selectedEmoticon && conversationId && conversationId === activeChatId) { setInput(prev => prev + selectedEmoticon); setSelectedEmoticon(null); } }, [selectedEmoticon, conversationId, activeChatId, setSelectedEmoticon]);
   useEffect(() => {
@@ -116,7 +157,25 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
     }
   };
   const scrollToBottom = () => { if (messageContainerRef.current) messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight; };
-  const handleSubmit = async (e) => { e.preventDefault(); if (!input.trim() || !conversationId) return; const content = input.trim(); setInput(''); await send(conversationId, content); scrollToBottom(); };
+  const sendTypingState = (isTyping) => {
+    if (!conversationId) return false;
+    const sent = sendSocketEvent('typing', { chatId: Number(conversationId), isTyping });
+    if (sent) {
+      typingSentRef.current = isTyping;
+      lastTypingSentAtRef.current = isTyping ? Date.now() : 0;
+    }
+    return sent;
+  };
+  const handleInputChange = (event) => {
+    const value = event.target.value;
+    setInput(value);
+    if (!value.trim()) {
+      if (typingSentRef.current) sendTypingState(false);
+      return;
+    }
+    if (!typingSentRef.current || Date.now() - lastTypingSentAtRef.current >= 5000) sendTypingState(true);
+  };
+  const handleSubmit = async (e) => { e.preventDefault(); if (!input.trim() || !conversationId) return; const content = input.trim(); setInput(''); if (typingSentRef.current) sendTypingState(false); clearTimeout(remoteTypingTimeoutRef.current); remoteTypingTimeoutRef.current = null; setContactIsTyping(false); await send(conversationId, content); scrollToBottom(); };
   const handleInputKeyDown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
@@ -268,11 +327,11 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
       ))}
       <div className="flex flex-col w-full font-sans text-base h-full">
         <div
-          className="flex items-center w-full h-[31.4px] shrink-0 bg-white p-2 gap-2 cursor-move"
+          className={`chat-window-titlebar flex items-center w-full h-[31.4px] shrink-0 bg-white p-2 gap-2 cursor-move ${needsAttention ? 'chat-window-attention' : ''}`}
           onPointerDown={(event) => startWindowInteraction(event, 'drag')}
         >
           <img src={contactChatIcon} alt="" />
-          <p className="flex gap-1" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name)) }}></p>
+          <p className={`flex gap-1 ${needsAttention ? 'unread-contact-name' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name)) }}></p>
           <p>&lt;{contact.email}&gt;</p>
           <div className="ml-auto flex items-center gap-1">
             {onMinimize && (
@@ -427,13 +486,15 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                 </div>
                 <div className="w-full mb-10">
                   {lastMessageTime && <p className="opacity-50 my-1">Last message received at {lastMessageTime}</p>}
+                  {contactIsTyping && <p className="my-1 min-h-4 text-xs italic text-[#1d2f7f]" role="status"><span dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name)) }} /> is writing a message.</p>}
                   <img src={divider} alt="" className="pointer-events-none" />
                   {/*--------------------- INPUT ---------------------*/}
                   <form onSubmit={handleSubmit}>
                     <textarea
                       rows={2}
                       value={input}
-                      onChange={(e) => setInput(e.target.value)}
+                      onChange={handleInputChange}
+                      onBlur={() => { if (typingSentRef.current) sendTypingState(false); }}
                       onKeyDown={handleInputKeyDown}
                       className="chat-message-input h-12 w-full resize-none border rounded-t-[4px] outline-none p-1 border-[#bdd5df]"
                     />

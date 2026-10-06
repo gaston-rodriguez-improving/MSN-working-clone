@@ -231,7 +231,18 @@ wss.on('connection', (socket, req) => {
     const token = new URL(req.url, `http://${req.headers.host}`).searchParams.get('token'); const claims = jwt.verify(token, config.jwtSecret); user = await getUser(Number(claims.sub)); if (!user || socket.readyState !== WebSocket.OPEN) throw new Error();
     if (!sockets.has(user.id)) sockets.set(user.id, new Set()); sockets.get(user.id).add(socket);
     await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); await broadcastUser('user_status_update', await getUser(user.id));
-    socket.on('message', raw => { (async () => { const event = JSON.parse(raw.toString()); if (event.type === 'message') { const result = await saveMessage(user.id, event.payload || event); if (result) broadcast(result.recipients, 'message', result.message); } })().catch(() => socket.send(JSON.stringify({ type: 'error', payload: { error: 'Invalid WebSocket event' } }))); });
+    socket.on('message', raw => {
+      (async () => {
+        const event = JSON.parse(raw.toString());
+        if (event.type === 'message') { const result = await saveMessage(user.id, event.payload || event); if (result) broadcast(result.recipients, 'message', result.message); }
+        else if (event.type === 'typing') {
+          const payload = event.payload || event; const chatId = Number(payload.chatId);
+          if (!Number.isSafeInteger(chatId) || chatId < 1 || typeof payload.isTyping !== 'boolean' || !await conversation(chatId) || !await member(chatId, user.id)) return;
+          const recipients = (await db.query('SELECT user_id FROM conversation_members WHERE conversation_id = $1 AND user_id != $2', [chatId, user.id])).rows.map(row => row.user_id);
+          broadcast(recipients, 'typing', { chatId, senderId: user.id, isTyping: payload.isTyping });
+        }
+      })().catch(() => socket.send(JSON.stringify({ type: 'error', payload: { error: 'Invalid WebSocket event' } })));
+    });
   })().catch(() => socket.close(1008, 'Invalid token'));
 });
 if (require.main === module) initializeDatabase().then(() => server.listen(config.port, () => console.log(`Messenger API listening on http://localhost:${config.port}`))).catch(error => { console.error('Database initialization failed:', error.message); db.end().finally(() => { process.exitCode = 1; }); });

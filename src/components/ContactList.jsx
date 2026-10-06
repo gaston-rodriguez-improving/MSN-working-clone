@@ -99,7 +99,7 @@ const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
       <div className="mt-1 w-2">
         <img src={whichStatus(contact.status)} alt="contact-status" />
       </div>
-      <span className={`flex gap-1 ${hasUnread ? 'font-bold' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username)) }}></span>
+      <span className={`flex gap-1 ${hasUnread ? 'unread-contact-name' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username)) }}></span>
       <span>{!statusMessage ? null : '-'}</span>
       <span className="flex gap-1 text-gray-400" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(statusMessage, 80)) }}></span>
     </div>

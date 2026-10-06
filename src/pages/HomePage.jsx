@@ -48,7 +48,7 @@ const readContactPreferences = (userId) => {
 
 const HomePage = () => {
   const { user } = useContext(AuthContext);
-  const { activeChatId, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, sendFriendInvitation, respondToFriendInvitation, setActiveChatId } = useContext(ChatContext);
+  const { activeChatId, unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, sendFriendInvitation, respondToFriendInvitation, setActiveChatId } = useContext(ChatContext);
   const [openChatIds, setOpenChatIds] = React.useState([]);
   const [minimizedChatIds, setMinimizedChatIds] = React.useState([]);
   const [showAddFriend, setShowAddFriend] = React.useState(false);
@@ -436,10 +436,12 @@ const HomePage = () => {
             {minimizedChatIds.map((contactId) => {
               const contact = contacts.find((item) => item.id === Number(contactId));
               if (!contact) return null;
+              const unreadCount = Number(unread[contactId] || 0);
+              const contactName = stripHtml(contact.name || contact.username);
               return (
-                <button key={contactId} type="button" className="chat-taskbar-button flex h-8 max-w-48 min-w-36 items-center gap-2 rounded px-2 text-left text-[12px] text-[#17364a]" onClick={() => focusChat(contactId)} title={stripHtml(contact.name || contact.username)}>
+                <button key={contactId} type="button" className={`chat-taskbar-button flex h-8 max-w-48 min-w-36 items-center gap-2 rounded px-2 text-left text-[12px] text-[#17364a] ${unreadCount > 0 ? 'chat-taskbar-attention' : ''}`} onClick={() => focusChat(contactId)} title={unreadCount > 0 ? `${unreadCount} unread ${unreadCount === 1 ? 'message' : 'messages'} from ${contactName}` : contactName} aria-label={unreadCount > 0 ? `${unreadCount} unread ${unreadCount === 1 ? 'message' : 'messages'} from ${contactName}` : `Restore chat with ${contactName}`}>
                   <img src={contact.image || '/assets/usertiles/default.png'} alt="" className="h-5 w-5 shrink-0 rounded-sm object-cover" />
-                  <span className="truncate" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username, 30)) }} />
+                  <span className={`min-w-0 flex-1 truncate ${unreadCount > 0 ? 'unread-contact-name' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username, 30)) }} />
                 </button>
               );
             })}

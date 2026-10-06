@@ -28,6 +28,21 @@ export function ChatProvider({ children }) {
   const messageLoads = useRef(new Map());
   const messageEffectListeners = useRef(new Map());
   const pendingMessageEffects = useRef(new Map());
+  const serverEventListeners = useRef(new Set());
+  const publishServerEvent = useCallback((event) => {
+    serverEventListeners.current.forEach((listener) => {
+      try { listener(event); } catch { return; }
+    });
+  }, []);
+  const subscribeToServerEvents = useCallback((listener) => {
+    serverEventListeners.current.add(listener);
+    return () => serverEventListeners.current.delete(listener);
+  }, []);
+  const sendSocketEvent = useCallback((type, payload) => {
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    try { socket.send(JSON.stringify({ type, payload })); return true; } catch { return false; }
+  }, []);
 
   const subscribeToMessageEffects = useCallback((chatId, listener) => {
     const key = Number(chatId);
@@ -43,6 +58,37 @@ export function ChatProvider({ children }) {
   }, []);
 
   useEffect(() => { contactsRef.current = contacts; }, [contacts]);
+  const unreadMessageTotal = Object.values(unread).reduce((total, count) => total + Number(count || 0), 0);
+  useEffect(() => {
+    const baseTitle = document.title || 'Windows Live Messenger';
+    if (!unreadMessageTotal) {
+      document.title = baseTitle;
+      return undefined;
+    }
+    const attentionTitle = `${unreadMessageTotal} new message${unreadMessageTotal === 1 ? '' : 's'} - ${baseTitle}`;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let showAttention = false;
+    const updateTitle = () => {
+      if (!document.hidden) {
+        document.title = baseTitle;
+        return;
+      }
+      if (reducedMotion) {
+        document.title = attentionTitle;
+        return;
+      }
+      showAttention = !showAttention;
+      document.title = showAttention ? attentionTitle : baseTitle;
+    };
+    updateTitle();
+    const timer = window.setInterval(updateTitle, 800);
+    document.addEventListener('visibilitychange', updateTitle);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', updateTitle);
+      document.title = baseTitle;
+    };
+  }, [unreadMessageTotal]);
   const requestsRef = useRef([]);
   useEffect(() => { requestsRef.current = friendRequests; }, [friendRequests]);
   useEffect(() => { activeRef.current = activeChatId; }, [activeChatId]);
@@ -166,6 +212,7 @@ export function ChatProvider({ children }) {
           setContacts((prev) => prev.map((item) => item.id === payload.id ? { ...item, ...payload, name: payload.username || item.name, message: payload.bio || item.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || item.image } : item));
         }
         if (type === 'user_bio_update' || type === 'user_avatar_update' || type === 'user_username_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, name: payload.username || contact.name, message: payload.bio || contact.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
+        publishServerEvent({ type, payload });
       } catch {
         return;
       }
@@ -176,7 +223,7 @@ export function ChatProvider({ children }) {
     window.addEventListener('online', reviveConnection);
     window.addEventListener('focus', reviveConnection);
     return () => { closed = true; clearTimeout(retryTimer); document.removeEventListener('visibilitychange', reviveConnection); window.removeEventListener('online', reviveConnection); window.removeEventListener('focus', reviveConnection); socket?.close(); socketRef.current = null; };
-  }, [user?.id, appendMessage, showNotification, playSound]);
+  }, [user?.id, appendMessage, showNotification, playSound, publishServerEvent]);
 
   const sendFriendInvitation = useCallback(async (userId, message) => {
     const { data } = await sendFriendRequest(userId, message);
@@ -189,17 +236,25 @@ export function ChatProvider({ children }) {
     if (accepted) setContacts((prev) => prev.some((c) => c.id === accepted.id) ? prev : [...prev, toContact(accepted)]);
     setFriendRequests((prev) => prev.filter((request) => request.id !== requestId));
   }, []);
+  const markConversationRead = useCallback((contactId, chatId) => {
+    setUnread((prev) => {
+      if (!prev[contactId]) return prev;
+      const next = { ...prev };
+      delete next[contactId];
+      return next;
+    });
+    if (chatId) resetUnread(chatId).catch(() => {});
+  }, []);
   const openConversation = useCallback(async (contactId) => {
     const contact = contactsRef.current.find((item) => item.id === Number(contactId));
     if (!contact) return null;
     const { data } = await startConversation(contact.id);
     const chatId = data.chatId || data.id;
     setActiveChatId(chatId);
-    setUnread((prev) => { if (!prev[contact.id]) return prev; const { [contact.id]: _, ...rest } = prev; return rest; });
-    await resetUnread(chatId).catch(() => {});
+    markConversationRead(contact.id, chatId);
     return { contact, chatId };
-  }, []);
+  }, [markConversationRead]);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, playSound, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, markConversationRead, loadMessages, subscribeToMessageEffects, subscribeToServerEvents, sendSocketEvent, playSound, send }}>{children}</ChatContext.Provider>;
 }
