@@ -87,27 +87,31 @@ const OptionsModal = ({ setShowOptionsModal }) => {
               <div className="flex items-center ml-1">
                 <p className="ml-1 pt-1">Options</p>
               </div>
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 aria-label="Close options"
-                className="h-7 w-8 rounded-tr-lg border-l border-[#c6c6c6] text-base leading-none hover:bg-[#c42b1c] hover:text-white"
+                className="flex items-center justify-center h-5 w-7 cursor-pointer rounded-tr-lg text-[10px] leading-none hover:bg-red-700 hover:text-white"
                 onClick={handleCloseModal}
+                onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') handleCloseModal(); }}
               >
-                ×
-              </button>
+                ╳
+              </div>
             </div>
 
             <div className="flex pl-2 h-full w-full">
               <div className="border border-black bg-white w-[110px] mr-2 h-full">
                 {['Personal', 'Sounds'].map((section) => (
-                  <button
+                  <div
                     key={section}
-                    type="button"
-                    className={`w-full text-left py-[5px] pl-1 cursor-pointer m-[1px] ${activeSection === section ? 'bg-[#0078d7] text-white' : 'hover:bg-[#0078d7] hover:text-white'}`}
+                    role="button"
+                    tabIndex={0}
+                    className={`py-[5px] pl-1 cursor-pointer m-[1px] ${activeSection === section ? 'bg-[#0078d7] text-white' : 'hover:bg-[#0078d7] hover:text-white'}`}
                     onClick={() => setActiveSection(section)}
+                    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setActiveSection(section); }}
                   >
                     {section}
-                  </button>
+                  </div>
                 ))}
               </div>
               <div className="w-full pr-1">
@@ -145,7 +149,7 @@ const OptionsModal = ({ setShowOptionsModal }) => {
                       </div>
                     </>
                   ) : (
-                    <div className="ml-6 mt-3 flex flex-col gap-3">
+                    <div className="win7 ml-6 mt-3 flex flex-col gap-3">
                       <p>Choose which sounds Messenger plays:</p>
                       {[
                         ['contactsOnline', 'When a contact signs in'],
@@ -153,14 +157,15 @@ const OptionsModal = ({ setShowOptionsModal }) => {
                         ['messages', 'When you receive a message'],
                         ['nudges', 'When you receive or send a nudge'],
                       ].map(([preference, label]) => (
-                        <label key={preference} className="flex items-center gap-2 cursor-pointer">
+                        <div key={preference}>
                           <input
+                            id={`sound-${preference}`}
                             type="checkbox"
                             checked={soundPreferences[preference]}
                             onChange={(event) => handleSoundPreferenceChange(preference, event.target.checked)}
                           />
-                          {label}
-                        </label>
+                          <label htmlFor={`sound-${preference}`}>{label}</label>
+                        </div>
                       ))}
                     </div>
                   )}
