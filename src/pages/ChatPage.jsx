@@ -379,7 +379,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                               />
                               <p className="ml-1">says:</p>
                             </div>
-                            <div className="flex gap-2 items-start ml-1">
+                            <div className="flex gap-3 items-start ml-1">
                               <div className="flex-shrink-0 mt-2.5">
                                 <img src={messageDot} alt="Message Dot" />
                               </div>
@@ -406,7 +406,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                               />
                               <p className="ml-1">says:</p>
                             </div>
-                            <div className="flex gap-2 items-start ml-1">
+                            <div className="flex gap-3 items-start ml-1">
                               <div className="flex-shrink-0 mt-2.5">
                                 <img src={messageDot} alt="Message Dot" />
                               </div>

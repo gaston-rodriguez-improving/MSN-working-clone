@@ -10,6 +10,10 @@
   height: 48px;
 }
 
+.message + .message {
+  margin-top: 1.25rem;
+}
+
 .aerobutton {
   background-color: transparent;
   border: 2px solid transparent;
