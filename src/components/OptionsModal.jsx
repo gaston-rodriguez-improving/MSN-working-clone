@@ -88,7 +88,6 @@ const OptionsModal = ({ setShowOptionsModal }) => {
                 <p className="ml-1 pt-1">Options</p>
               </div>
               <div
-                role="button"
                 tabIndex={0}
                 aria-label="Close options"
                 className="flex items-center justify-center h-5 w-7 cursor-pointer rounded-tr-lg text-[10px] leading-none hover:bg-red-700 hover:text-white"
@@ -104,7 +103,6 @@ const OptionsModal = ({ setShowOptionsModal }) => {
                 {['Personal', 'Sounds'].map((section) => (
                   <div
                     key={section}
-                    role="button"
                     tabIndex={0}
                     className={`py-[5px] pl-1 cursor-pointer m-[1px] ${activeSection === section ? 'bg-[#0078d7] text-white' : 'hover:bg-[#0078d7] hover:text-white'}`}
                     onClick={() => setActiveSection(section)}
