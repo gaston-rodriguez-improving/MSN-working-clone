@@ -13,7 +13,7 @@ export const signIn = (data) => api.post('/auth/sign-in', data);
 export const signInWithMicrosoft = (idToken) => api.post('/auth/microsoft', { id_token: idToken });
 export const signUp = (data) => api.post('/auth/sign-up', data);
 export const checkToken = () => api.get('/auth/check-token');
-export const getAdminMetrics = () => api.get('/admin/metrics');
+export const getAdminMetrics = () => api.get('/admin/metrics', { params: { _nocache: Date.now() }, headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } });
 export const getUsers = (search = '') => api.get('/users', { params: search ? { search } : undefined });
 export const getFriends = () => api.get('/friends');
 export const getContactPreferences = () => api.get('/contact-preferences');

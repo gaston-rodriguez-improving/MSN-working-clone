@@ -44,11 +44,16 @@ const AdminPage = () => {
     setError('');
     try {
       const { data } = await getAdminMetrics();
-      setMetrics(data);
+      const metricData = data?.metrics && typeof data.metrics === 'object' ? data.metrics : data;
+      const overview = data?.overview ?? metricData?.overview ?? metricData;
+      if (!overview || typeof overview !== 'object' || !Object.prototype.hasOwnProperty.call(overview, 'total_users')) throw new Error('Invalid admin metrics response');
+      setMetrics({ ...data, overview, signupsByDay: data?.signupsByDay ?? data?.signups_by_day ?? metricData?.signupsByDay ?? [] });
     } catch (requestError) {
-      setError(requestError.response?.status === 403
-        ? 'Esta cuenta no tiene permisos de administración. Iniciá sesión con una cuenta Microsoft autorizada.'
-        : 'No se pudieron cargar las métricas. Revisá la conexión e intentá nuevamente.');
+      setError(requestError.message === 'Invalid admin metrics response'
+        ? 'La API devolvió un formato de métricas inesperado. Actualizá el servidor y volvé a intentar.'
+        : requestError.response?.status === 403
+          ? 'Esta cuenta no tiene permisos de administración. Iniciá sesión con una cuenta Microsoft autorizada.'
+          : 'No se pudieron cargar las métricas. Revisá la conexión e intentá nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -89,7 +94,7 @@ const AdminPage = () => {
               <h2 className="text-lg font-semibold text-[#17344d]">Resumen general</h2>
               <p className="mt-1 text-sm text-[#6a8090]">Métricas del espacio de trabajo configurado.</p>
             </div>
-            <div className="text-xs text-[#7890a0]">{metrics ? `Actualizado ${new Date(metrics.generatedAt).toLocaleString('es-AR')}` : ' '}</div>
+            <div className="text-xs text-[#7890a0]">{metrics?.generatedAt ? `Actualizado ${new Date(metrics.generatedAt).toLocaleString('es-AR')}` : ' '}</div>
           </section>
 
           {error && (
@@ -105,7 +110,7 @@ const AdminPage = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-[#647c8e]">{metric.label}</p>
-                    <p className="mt-3 text-3xl font-semibold tracking-tight text-[#1d3a52]">{metrics ? numberFormat.format(metrics.overview[metric.key]) : '—'}</p>
+                    <p className="mt-3 text-3xl font-semibold tracking-tight text-[#1d3a52]">{metrics?.overview?.[metric.key] === undefined ? '—' : numberFormat.format(metrics.overview[metric.key])}</p>
                   </div>
                   <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[11px] font-bold tracking-wide" style={{ color: metric.color, backgroundColor: `${metric.color}14` }}>{metric.mark}</span>
                 </div>
@@ -121,7 +126,7 @@ const AdminPage = () => {
                   <h2 className="font-semibold text-[#1d3a52]">Altas de usuarios</h2>
                   <p className="mt-1 text-sm text-[#7a8e9c]">Registros por día · últimos 7 días</p>
                 </div>
-                <span className="rounded-full bg-[#edf6fc] px-3 py-1 text-xs font-semibold text-[#1769aa]">{numberFormat.format(metrics?.overview.new_users_7d || 0)} nuevos</span>
+                <span className="rounded-full bg-[#edf6fc] px-3 py-1 text-xs font-semibold text-[#1769aa]">{numberFormat.format(metrics?.overview?.new_users_7d || 0)} nuevos</span>
               </div>
               <div className="mt-7 flex h-44 items-end gap-2 sm:gap-4" role="img" aria-label="Gráfico de altas de usuarios durante los últimos siete días">
                 {chartValues.map(({ date, count }) => {
