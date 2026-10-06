@@ -171,7 +171,7 @@ export default function WinampPage() {
 
   const publishPlaying = useCallback((state) => {
     setPlayback(state);
-    if (!state.playing || !listeningEnabled || !listeningSharing || !state.trackId || selectedFolder?.isPersonal) {
+    if (!state.playing || !listeningEnabled || !listeningSharing || !state.trackId) {
       clearActivity();
       return;
     }
@@ -185,7 +185,7 @@ export default function WinampPage() {
     } else {
       current.playing = true;
     }
-  }, [clearActivity, listeningSharing, publish, selectedFolder?.isPersonal]);
+  }, [clearActivity, listeningSharing, publish]);
 
   useEffect(() => {
     if (!playback.playing || !listeningEnabled || !listeningSharing) return undefined;
@@ -387,7 +387,7 @@ export default function WinampPage() {
       <NewFolderDialog open={folderDialogOpen} busy={folderBusy} error={folderError} onSubmit={handleCreateFolder} onClose={() => setFolderDialogOpen(false)} />
       <AddTrackDialog folderName={selectedFolder?.name} isPersonal={selectedFolder?.isPersonal} open={addDialogOpen} busy={submitting} error={error} onSubmit={handleAddTrack} onClose={() => setAddDialogOpen(false)} />
       <aside className="winamp-desktop-controls" aria-label="Player options">
-        {listeningEnabled && <label className="winamp-share-toggle"><input type="checkbox" disabled={Boolean(selectedFolder?.isPersonal)} title={selectedFolder?.isPersonal ? 'Personal listening is never shared' : undefined} checked={Boolean(listeningSharing)} onChange={(event) => setListeningSharing(event.target.checked).catch((failure) => setError(failure.response?.data?.error || 'Could not update listening sharing.'))} /> Share listening activity</label>}
+        {listeningEnabled && <label className="winamp-share-toggle"><input type="checkbox" checked={Boolean(listeningSharing)} onChange={(event) => setListeningSharing(event.target.checked).catch((failure) => setError(failure.response?.data?.error || 'Could not update listening sharing.'))} /> Share listening activity</label>}
         {(notice || (error && !addDialogOpen)) && <span className="winamp-desktop-notice" role={error ? 'alert' : 'status'}>{error || notice}</span>}
       </aside>
     </main>

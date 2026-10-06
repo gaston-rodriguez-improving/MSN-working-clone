@@ -107,14 +107,16 @@ test('shared catalog permissions and listening lease ownership', { skip: !enable
   assert.equal((await api('/music/tracks', bob.access_token, 'POST', { url: `https://youtu.be/p${suffix.slice(0, 10)}`, title: 'Attempted private duplicate', folderId: personal.id })).status, 404);
   assert.equal((await api(`/music/tracks/${personalTrack.body.track.id}`, bob.access_token, 'DELETE')).status, 404);
   const privateSession = `private-${suffix}`;
-  const privateEventStarts = [aliceSocket.events.length, bobSocket.events.length, strangerSocket.events.length];
   aliceSocket.ws.send(JSON.stringify({ type: 'listening_activity', payload: { action: 'start', sessionId: privateSession, sequence: 1, trackId: personalTrack.body.track.id } }));
-  await new Promise(resolve => setTimeout(resolve, 250));
-  for (const [events, start] of [[aliceSocket.events, privateEventStarts[0]], [bobSocket.events, privateEventStarts[1]], [strangerSocket.events, privateEventStarts[2]]]) {
-    assert.equal(events.slice(start).some(event => event.type === 'listening_activity' && (event.payload.activity?.sessionId === privateSession || event.payload.activity?.trackId === personalTrack.body.track.id)), false);
-  }
-  assert.equal((await api('/music/listening', alice.access_token)).body.activities.some(activity => activity.trackId === personalTrack.body.track.id), false);
+  await waitFor(bobSocket.events, event => event.type === 'listening_activity' && event.payload.activity?.sessionId === privateSession);
+  assert.equal((await api('/music/listening', bob.access_token)).body.activities.some(activity => activity.trackId === personalTrack.body.track.id), true);
+  assert.equal((await api('/music/listening', stranger.access_token)).body.activities.some(activity => activity.trackId === personalTrack.body.track.id), false);
+  // Sharing a song does not grant access to its private playlist or permit impersonation.
+  assert.equal((await api(`/music/tracks?folderId=${personal.id}`, bob.access_token)).status, 404);
+  bobSocket.ws.send(JSON.stringify({ type: 'listening_activity', payload: { action: 'start', sessionId: `unauthorized-${suffix}`, sequence: 1, trackId: personalTrack.body.track.id } }));
+  await api('/music/listening-preference', alice.access_token, 'PUT', { share: false });
   assert.equal((await api('/music/listening', bob.access_token)).body.activities.some(activity => activity.trackId === personalTrack.body.track.id), false);
+  await api('/music/listening-preference', alice.access_token, 'PUT', { share: true });
   const sharedFolder = await api('/music/folders', bob.access_token, 'POST', { name: `Shared ${suffix}` });
   assert.equal(sharedFolder.status, 201, JSON.stringify(sharedFolder.body));
   assert.equal(aliceFolders.body.folders.some(folder => folder.id === sharedFolder.body.folder.id), false);

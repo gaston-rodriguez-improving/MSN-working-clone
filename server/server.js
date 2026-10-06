@@ -463,18 +463,7 @@ async function updateListening(userId, body, socketId) {
       const trackId = Number(body.trackId);
       const track = (await client.query(`SELECT t.id,t.title,t.artist,f.owner_id FROM event_music_tracks t JOIN event_music_folders f ON f.id=t.folder_id WHERE t.id=$1 AND t.company_id=$2 AND t.event_id=$3 AND t.removed_at IS NULL AND f.deleted_at IS NULL`, [trackId, config.companyId, config.eventId])).rows[0];
       if (!track) { await client.query('COMMIT'); return; }
-      if (track.owner_id != null) {
-        if (track.owner_id !== userId) { await client.query('COMMIT'); return; }
-        if (existing && existing.socket_id === socketId) {
-          const revision = Number(pref.revision) + 1;
-          await client.query('DELETE FROM user_music_activities WHERE user_id=$1', [userId]);
-          await client.query('UPDATE user_music_preferences SET revision=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1', [userId, revision]);
-          envelope = listeningEnvelope(userId, revision, null);
-        }
-        await client.query('COMMIT');
-        if (envelope) await sendListening(userId, envelope);
-        return;
-      }
+      if (track.owner_id != null && track.owner_id !== userId) { await client.query('COMMIT'); return; }
       const revision = Number(pref.revision) + 1;
       const row = (await client.query(`INSERT INTO user_music_activities(user_id,session_id,socket_id,client_sequence,track_id,title,artist,revision,started_at,updated_at,expires_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP+INTERVAL '60 seconds')
