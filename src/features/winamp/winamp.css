@@ -68,3 +68,23 @@
 .winamp-desktop-shortcut { position: absolute; left: 24px; bottom: 20px; z-index: 1; width: 76px; padding: 5px; border: 1px solid transparent; background: transparent; color: white; font: 12px Tahoma, sans-serif; cursor: pointer; text-shadow: 1px 1px #000; }
 .winamp-desktop-shortcut svg { display: block; width: 44px; height: 44px; margin: 0 auto 4px; }
 .winamp-desktop-shortcut:focus-visible, .winamp-desktop-shortcut:hover { background: #224c7870; border: 1px dotted #a4bdde; outline: none; }
+
+/* MilkDrop chrome uses the supplied classic skin artwork as scalable slices. */
+.winamp-media-window, .winamp-media-window.is-effects { box-sizing: border-box; width: min(760px, calc(100vw - 365px)); padding: 0; border: solid transparent; border-width: 3px 20px 20px; border-image: url('/assets/winamp/milkdrop-frame.png') 3 20 20 20 stretch; background: #29293e; box-shadow: none; }
+.winamp-window-title { height: 24px; margin: 0 -11px; padding: 0; gap: 5px; border: 0; background: #29293e; }
+.milkdrop-title-rail { flex: 1; height: 14px; background: url('/assets/winamp/milkdrop-rail.png') center / 100% 14px no-repeat; }
+.milkdrop-title { width: 112px; height: 18px; image-rendering: pixelated; }
+.winamp-window-actions { margin-left: 0; gap: 2px; }
+.winamp-window-actions button { width: 18px; height: 17px; border: 0; padding: 0; background: #29293e; color: #c6b46a; font: bold 13px monospace; }
+.winamp-window-actions button img { display: block; width: 18px; height: 17px; image-rendering: pixelated; }
+.winamp-media-toolbar { height: 26px; padding: 0 4px; background: #29293e; border-bottom: 1px solid #77778c; }
+.winamp-media-toolbar button { padding: 2px 6px; color: #bebecb; background: #35354c; border: 1px solid #646478; font: 10px Tahoma, sans-serif; }
+.winamp-media-toolbar button.active { color: #f1db89; border-color: #b6a369; box-shadow: none; }
+.winamp-media-toolbar span { font-size: 9px; color: #b9b9c8; }
+.winamp-media-content { position: relative; padding: 1px; gap: 0; background: #000; }
+.winamp-youtube-frame, .winamp-effects-canvas { border: 0; box-shadow: none; background: #000; }
+.winamp-attribution { padding: 4px 0 0; background: #29293e; color: #aaaabc; font-size: 9px; }
+.winamp-attribution a { color: #c9c9d6; }
+@media (max-width: 760px) {
+  .winamp-media-window, .winamp-media-window.is-effects { width: calc(100% - 28px); }
+}

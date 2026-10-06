@@ -86,26 +86,50 @@ export function ChatProvider({ children }) {
     }
     const attentionTitle = `${unreadMessageTotal} new message${unreadMessageTotal === 1 ? '' : 's'} - ${baseTitle}`;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const iconLink = document.querySelector('link[rel~="icon"]');
+    const baseIconHref = iconLink?.href;
+    let attentionIconHref = null;
     let showAttention = false;
-    const updateTitle = () => {
-      if (!document.hidden) {
-        document.title = baseTitle;
-        return;
-      }
-      if (reducedMotion) {
-        document.title = attentionTitle;
-        return;
-      }
+    let timer;
+    let cancelled = false;
+    if (iconLink && baseIconHref) {
+      const image = new Image();
+      image.onload = () => {
+        if (cancelled) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.drawImage(image, 0, 0, 32, 32);
+        context.lineWidth = 3;
+        context.strokeStyle = '#ff9f1c';
+        context.shadowColor = 'rgba(255, 159, 28, 0.8)';
+        context.shadowBlur = 5;
+        context.strokeRect(2, 2, 28, 28);
+        attentionIconHref = canvas.toDataURL('image/png');
+        if (showAttention) iconLink.href = attentionIconHref;
+      };
+      image.src = baseIconHref;
+    }
+    const updateAttention = () => {
       showAttention = !showAttention;
       document.title = showAttention ? attentionTitle : baseTitle;
+      if (iconLink && attentionIconHref) iconLink.href = showAttention ? attentionIconHref : baseIconHref;
     };
-    updateTitle();
-    const timer = window.setInterval(updateTitle, 800);
-    document.addEventListener('visibilitychange', updateTitle);
+    if (reducedMotion) {
+      showAttention = true;
+      document.title = attentionTitle;
+      if (iconLink && attentionIconHref) iconLink.href = attentionIconHref;
+    } else {
+      updateAttention();
+      timer = window.setInterval(updateAttention, 800);
+    }
     return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', updateTitle);
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
       document.title = baseTitle;
+      if (iconLink && baseIconHref) iconLink.href = baseIconHref;
     };
   }, [unreadMessageTotal]);
   const requestsRef = useRef([]);

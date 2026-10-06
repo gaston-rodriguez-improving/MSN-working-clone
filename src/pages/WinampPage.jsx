@@ -61,7 +61,7 @@ export default function WinampPage() {
   const [notice, setNotice] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState(null);
+  const [, setSelectedTrack] = useState(null);
   const [playback, setPlayback] = useState({ playing: false, state: 'unstarted' });
   const [playerControls, setPlayerControls] = useState(null);
   const mediaWindowRef = useRef(null);
@@ -273,10 +273,10 @@ export default function WinampPage() {
 
         <section hidden={!mediaOpen} ref={mediaWindowRef} className={`winamp-media-window ${mode === 'effects' ? 'is-effects' : ''}`} aria-label="YouTube media window" onPointerDownCapture={() => setActiveWindow('video')}>
           <div className="winamp-window-title" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={() => { dragRef.current = null; }}>
-            <span className="winamp-title-icon">▶</span><span>MSN VIDEO · {selectedTrack?.title || 'YOUTUBE PLAYER'}</span>
+            <span className="milkdrop-title-rail" /><img className="milkdrop-title" src="/assets/winamp/milkdrop-title.png" alt="MilkDrop" /><span className="milkdrop-title-rail" />
             <div className="winamp-window-actions">
               <button type="button" aria-label="Minimize video window" onClick={() => { setMediaOpen(false); }}>_</button>
-              <button type="button" aria-label="Close video window" onClick={() => { bridge.stop(); setMediaOpen(false); }}>×</button>
+              <button type="button" aria-label="Close video window" onClick={() => { bridge.stop(); setMediaOpen(false); }}><img src="/assets/winamp/milkdrop-close.png" alt="" /></button>
             </div>
           </div>
           <div className="winamp-media-toolbar">
