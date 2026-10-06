@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Background from '../components/Background';
 import AvatarLarge from '../components/AvatarLarge';
 import { ChatContext } from '../contexts/ChatContext';
-import sounds from '../imports/sounds';
 import EmoticonSelector from '../components/EmoticonSelector';
 import WinkSelector from '../components/WinkSelector';
 import { winks_icons } from '../imports/winks';
@@ -36,7 +35,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   const [lastMessageTime, setLastMessageTime] = useState(null);
   const user = JSON.parse(localStorage.getItem('messenger_user') || 'null');
   const { selectedEmoticon, setSelectedEmoticon } = useContext(EmoticonContext);
-  const { activeChatId, contacts, messages: conversations, hasMoreMessages, loadMessages, openConversation, setActiveChatId, subscribeToMessageEffects, send } = useContext(ChatContext);
+  const { activeChatId, contacts, messages: conversations, hasMoreMessages, loadMessages, openConversation, setActiveChatId, subscribeToMessageEffects, playSound, send } = useContext(ChatContext);
   const [conversationId, setConversationId] = useState(null);
   const messageContainerRef = useRef(null);
   const olderScrollAnchorRef = useRef(null);
@@ -78,13 +77,12 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
       if (message.drawAttention) {
         setShaking(true);
         if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
-        const audio = new Audio(sounds.nudge);
-        audio.play().catch(() => {});
+        playSound(undefined, 'nudges');
         nudgeTimeoutRef.current = setTimeout(() => setShaking(false), 500);
       }
       if (message.winks) setReceivedWink(message);
     });
-  }, [conversationId, isMinimized, subscribeToMessageEffects, user?.id]);
+  }, [conversationId, isMinimized, playSound, subscribeToMessageEffects, user?.id]);
   useEffect(() => () => clearTimeout(nudgeTimeoutRef.current), []);
   useEffect(() => { if (selectedEmoticon && conversationId && conversationId === activeChatId) { setInput(prev => prev + selectedEmoticon); setSelectedEmoticon(null); } }, [selectedEmoticon, conversationId, activeChatId, setSelectedEmoticon]);
   useEffect(() => {
@@ -149,8 +147,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
 
   const handleNudgeClick = async () => {
     if (!conversationId) return;
-    const audio = new Audio(sounds.nudge);
-    audio.play().catch(() => {});
+    playSound(undefined, 'nudges');
     setShaking(true);
     if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
     nudgeTimeoutRef.current = setTimeout(() => setShaking(false), 500);

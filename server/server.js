@@ -29,11 +29,12 @@ const config = {
   azureAdClientId: process.env.AZURE_AD_CLIENT_ID || '',
   allowedDomains: (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean)
 };
+const adminEmails = new Set(['gaston.rodriguez@improving.com', 'diana.corigliano@improving.com']);
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(x => x.trim()) : true }));
 app.use(express.json({ limit: '1mb' }));
 const publicUser = row => row && ({ id: row.id, email: row.email, username: row.username, status: row.status, bio: row.bio, avatar: row.avatar, banner: row.banner });
-const tokenFor = user => jwt.sign({ sub: user.id, companyId: user.company_id, eventId: user.event_id }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
+const tokenFor = (user, authProvider = 'password') => jwt.sign({ sub: user.id, companyId: user.company_id, eventId: user.event_id, authProvider }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 async function getUser(id) { return (await db.query('SELECT * FROM users WHERE id = $1 AND company_id = $2 AND event_id = $3', [id, config.companyId, config.eventId])).rows[0]; }
 function emailAllowed(email) { return !config.allowedDomains.length || config.allowedDomains.includes(String(email).toLowerCase().split('@')[1]); }
 function auth(req, res, next) {
@@ -42,7 +43,11 @@ function auth(req, res, next) {
   let claims;
   try { claims = jwt.verify(token, config.jwtSecret); } catch { return res.status(401).json({ error: 'Invalid or expired token' }); }
   if (claims.companyId !== config.companyId || claims.eventId !== config.eventId) return res.status(401).json({ error: 'Invalid or expired token' });
-  getUser(Number(claims.sub)).then(user => { if (!user) return res.status(401).json({ error: 'Invalid or expired token' }); req.user = user; next(); }).catch(next);
+  getUser(Number(claims.sub)).then(user => { if (!user) return res.status(401).json({ error: 'Invalid or expired token' }); req.user = user; req.authProvider = claims.authProvider; next(); }).catch(next);
+}
+function adminAuth(req, res, next) {
+  if (!adminEmails.has(String(req.user.email || '').trim().toLowerCase()) || req.authProvider !== 'microsoft') return res.status(403).json({ error: 'Admin access denied' });
+  next();
 }
 async function conversation(id) { return (await db.query('SELECT * FROM conversations WHERE id = $1 AND company_id = $2 AND event_id = $3', [id, config.companyId, config.eventId])).rows[0]; }
 async function member(conversationId, userId) { return !!(await db.query('SELECT 1 FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [conversationId, userId])).rows[0]; }
@@ -69,6 +74,24 @@ async function initializeDatabase() {
   await db.query(fs.readFileSync(path.join(root, 'schema.sql'), 'utf8'));
 }
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/admin/metrics', auth, adminAuth, asyncRoute(async (_req, res) => {
+  const values = [config.companyId, config.eventId];
+  const [overviewResult, signupResult] = await Promise.all([
+    db.query(`SELECT
+      (SELECT COUNT(*)::int FROM users WHERE company_id = $1 AND event_id = $2) AS total_users,
+      (SELECT COUNT(*)::int FROM users WHERE company_id = $1 AND event_id = $2 AND status = 'online') AS online_users,
+      (SELECT COUNT(*)::int FROM users WHERE company_id = $1 AND event_id = $2 AND created_at >= NOW() - INTERVAL '7 days') AS new_users_7d,
+      (SELECT COUNT(*)::int FROM conversations WHERE company_id = $1 AND event_id = $2) AS total_conversations,
+      (SELECT COUNT(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND c.event_id = $2 AND m.created_at >= NOW() - INTERVAL '7 days') AS messages_7d,
+      (SELECT COUNT(*)::int FROM friend_requests fr JOIN users u ON u.id = fr.recipient_id WHERE u.company_id = $1 AND u.event_id = $2 AND fr.status = 'pending') AS pending_friend_requests,
+      (SELECT COUNT(*)::int FROM friend_requests fr JOIN users u ON u.id = fr.recipient_id WHERE u.company_id = $1 AND u.event_id = $2 AND fr.status = 'accepted') AS accepted_friendships`, values),
+    db.query(`SELECT to_char(days.day, 'YYYY-MM-DD') AS date, COUNT(u.id)::int AS count
+      FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS days(day)
+      LEFT JOIN users u ON u.company_id = $1 AND u.event_id = $2 AND u.created_at >= days.day AND u.created_at < days.day + INTERVAL '1 day'
+      GROUP BY days.day ORDER BY days.day`, values)
+  ]);
+  res.set('Cache-Control', 'no-store').json({ generatedAt: new Date().toISOString(), overview: overviewResult.rows[0], signupsByDay: signupResult.rows });
+}));
 app.post('/auth/sign-up', asyncRoute(async (req, res) => {
   const { email, password } = req.body || {}; const username = String(req.body?.username || req.body?.name || '').trim();
   if (!email || !password || !username) return res.status(400).json({ error: 'email, username and password are required' });
@@ -81,7 +104,7 @@ app.post('/auth/sign-up', asyncRoute(async (req, res) => {
 app.post('/auth/sign-in', asyncRoute(async (req, res) => { const email = String(req.body?.email || '').trim().toLowerCase(); const user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user || !(await bcrypt.compare(String(req.body?.password || ''), user.password_hash))) return res.status(401).json({ error: 'Invalid email or password' }); await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); res.status(200).json({ access_token: tokenFor(updated), user: publicUser(updated) }); }));
 async function verifyAzureAdIdToken(idToken) { if (!config.azureAdTenantId || !config.azureAdClientId) throw new Error('Azure AD SSO is not configured'); const { createRemoteJWKSet, jwtVerify } = await import('jose'); const authority = `https://login.microsoftonline.com/${config.azureAdTenantId}`; const issuer = `${authority}/v2.0`; const jwks = createRemoteJWKSet(new URL(`${authority}/discovery/v2.0/keys`)); const { payload } = await jwtVerify(idToken, jwks, { issuer, audience: config.azureAdClientId }); return payload; }
 async function uniqueUsername(email, name) { let display = String(name || '').normalize('NFC').replace(/[^\p{L}\p{N} ._'-]/gu, ' ').replace(/\s+/g, ' ').trim(); const comma = display.match(/^([^,]+),\s*(.+)$/); if (comma) display = `${comma[2]} ${comma[1]}`.replace(/\s+/g, ' ').trim(); const base = (display || String(email.split('@')[0]).replace(/[^a-zA-Z0-9._-]/g, '')).slice(0, 40).trim() || 'user'; let username = base; let suffix = 1; while ((await db.query('SELECT 1 FROM users WHERE username = $1 AND company_id = $2 AND event_id = $3', [username, config.companyId, config.eventId])).rows[0]) username = `${base}${suffix++}`; return username; }
-app.post('/auth/microsoft', asyncRoute(async (req, res) => { try { const claims = await verifyAzureAdIdToken(String(req.body?.id_token || '')); const email = String(claims.preferred_username || claims.email || '').trim().toLowerCase(); if (!email || !emailAllowed(email)) return res.status(403).json({ error: 'Your Microsoft account is not allowed' }); let user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user) { const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12); const username = await uniqueUsername(email, claims.name); const result = await db.query('INSERT INTO users (email, username, password_hash, company_id, event_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [email, username, passwordHash, config.companyId, config.eventId, 'online']); user = await getUser(result.rows[0].id); } else await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); res.status(200).json({ access_token: tokenFor(updated), user: publicUser(updated) }); } catch (error) { console.error('Microsoft Entra authentication failed:', error.message); res.status(401).json({ error: 'Microsoft sign-in failed. Check the Entra app configuration and try again.' }); } }));
+app.post('/auth/microsoft', asyncRoute(async (req, res) => { try { const claims = await verifyAzureAdIdToken(String(req.body?.id_token || '')); const email = String(claims.preferred_username || claims.email || '').trim().toLowerCase(); if (!email || !emailAllowed(email)) return res.status(403).json({ error: 'Your Microsoft account is not allowed' }); let user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user) { const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12); const username = await uniqueUsername(email, claims.name); const result = await db.query('INSERT INTO users (email, username, password_hash, company_id, event_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [email, username, passwordHash, config.companyId, config.eventId, 'online']); user = await getUser(result.rows[0].id); } else await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); res.status(200).json({ access_token: tokenFor(updated, 'microsoft'), user: publicUser(updated) }); } catch (error) { console.error('Microsoft Entra authentication failed:', error.message); res.status(401).json({ error: 'Microsoft sign-in failed. Check the Entra app configuration and try again.' }); } }));
 app.get('/auth/check-token', auth, (req, res) => res.json({ user: publicUser(req.user) }));
 app.get('/contact-preferences', auth, asyncRoute(async (req, res) => {
   const row = (await db.query('SELECT preferences FROM user_contact_preferences WHERE user_id = $1', [req.user.id])).rows[0];

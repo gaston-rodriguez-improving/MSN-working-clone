@@ -1,12 +1,11 @@
 import { stripHtml } from '../helpers/stripHtml';
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import '7.css/dist/7.scoped.css';
 import line from '/assets/general/subtitles_line_options.png';
-import defaultAvatar from '/assets/usertiles/default.png';
-import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import { AuthContext } from '../contexts/AuthContext';
+import { readSoundPreferences, SOUND_PREFERENCES_STORAGE_KEY } from '../helpers/soundPreferences';
 
-const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
+const OptionsModal = ({ setShowOptionsModal }) => {
   const { user: account, updateUsername } = useContext(AuthContext);
   const [user, setUser] = useState({
     message: localStorage.getItem('message'),
@@ -18,7 +17,15 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
   const [name, setName] = useState(user.name);
   const [isModified, setIsModified] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [activeSection, setActiveSection] = useState('Personal');
+  const [soundPreferences, setSoundPreferences] = useState(readSoundPreferences);
   const usernameChanged = name.trim() !== account?.username;
+
+  const handleSoundPreferenceChange = (preference, enabled) => {
+    const nextPreferences = { ...soundPreferences, [preference]: enabled };
+    localStorage.setItem(SOUND_PREFERENCES_STORAGE_KEY, JSON.stringify(nextPreferences));
+    setSoundPreferences(nextPreferences);
+  };
 
   const handleMessageChange = (e) => {
     setMessage(e.target.value);
@@ -80,55 +87,83 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
               <div className="flex items-center ml-1">
                 <p className="ml-1 pt-1">Options</p>
               </div>
-              <button className="pb-2 pt-1 px-3 rounded-tr-lg hover:bg-red-700 hover:text-white" onClick={handleCloseModal}>
-                <p className="text-[10px]">╳</p>
+              <button
+                type="button"
+                aria-label="Close options"
+                className="h-7 w-8 rounded-tr-lg border-l border-[#c6c6c6] text-base leading-none hover:bg-[#c42b1c] hover:text-white"
+                onClick={handleCloseModal}
+              >
+                ×
               </button>
             </div>
 
             <div className="flex pl-2 h-full w-full">
               <div className="border border-black bg-white w-[110px] mr-2 h-full">
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Personal</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Layout</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Sign In</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Messages</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Alerts</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Sounds</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">File Transfer</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Privacy</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Security</div>
-                <div className="py-[5px] pl-1 hover:bg-[#0078d7] hover:text-white cursor-pointer m-[1px]">Connection</div>
+                {['Personal', 'Sounds'].map((section) => (
+                  <button
+                    key={section}
+                    type="button"
+                    className={`w-full text-left py-[5px] pl-1 cursor-pointer m-[1px] ${activeSection === section ? 'bg-[#0078d7] text-white' : 'hover:bg-[#0078d7] hover:text-white'}`}
+                    onClick={() => setActiveSection(section)}
+                  >
+                    {section}
+                  </button>
+                ))}
               </div>
               <div className="w-full pr-1">
                 <fieldset className="border border-black border-opacity-10 h-full">
-                  <legend className="font-bold ml-2">Personal</legend>
-                  <div className="flex gap-1 mt-2">
-                    <p className="ml-6">Display Name</p>
-                    <div className="mt-[10px]">
-                      <img src={line} />
+                  <legend className="font-bold ml-2">{activeSection}</legend>
+                  {activeSection === 'Personal' ? (
+                    <>
+                      <div className="flex gap-1 mt-2">
+                        <p className="ml-6">Display Name</p>
+                        <div className="mt-[10px]">
+                          <img src={line} alt="" />
+                        </div>
+                      </div>
+                      <div className="ml-12 mt-1">
+                        <div>
+                          <p>Type your name as you want others to see it:</p>
+                          <input
+                            type="text"
+                            className="w-[145px] border border-black border-opacity-25 h-6 mt-1 outline-none"
+                            value={name}
+                            maxLength={800}
+                            onChange={handleNameChange}
+                          />
+                        </div>
+                        <div className="mt-1">
+                          <p>Type a personal message for your contacts to see:</p>
+                          <input
+                            type="text"
+                            className="w-[290px] border border-black border-opacity-25 h-6 mt-1 outline-none"
+                            value={message}
+                            onChange={handleMessageChange}
+                          />
+                        </div>
+                        {saveError && <p className="ml-12 mt-2 text-red-700">{saveError}</p>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="ml-6 mt-3 flex flex-col gap-3">
+                      <p>Choose which sounds Messenger plays:</p>
+                      {[
+                        ['contactsOnline', 'When a contact signs in'],
+                        ['friendInvitations', 'When you receive a friend invitation'],
+                        ['messages', 'When you receive a message'],
+                        ['nudges', 'When you receive or send a nudge'],
+                      ].map(([preference, label]) => (
+                        <label key={preference} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={soundPreferences[preference]}
+                            onChange={(event) => handleSoundPreferenceChange(preference, event.target.checked)}
+                          />
+                          {label}
+                        </label>
+                      ))}
                     </div>
-                  </div>
-                  <div className="ml-12 mt-1">
-                    <div>
-                      <p>Type your name as you want others to see it:</p>
-                      <input
-                        type="text"
-                        className="w-[145px] border border-black border-opacity-25 h-6 mt-1 outline-none"
-                        value={name}
-                        maxLength={800}
-                        onChange={handleNameChange}
-                      />
-                    </div>
-                    <div className="mt-1">
-                      <p>Type a personal message for your contacts to see:</p>
-                      <input
-                        type="text"
-                        className="w-[290px] border border-black border-opacity-25 h-6 mt-1 outline-none"
-                        value={message}
-                        onChange={handleMessageChange}
-                      />
-                    </div>
-                    {saveError && <p className="ml-12 mt-2 text-red-700">{saveError}</p>}
-                  </div>
+                  )}
                 </fieldset>
               </div>
             </div>
@@ -154,4 +189,4 @@ const ChangeDisplayPictureModal = ({ setShowOptionsModal }) => {
   );
 };
 
-export default ChangeDisplayPictureModal;
+export default OptionsModal;

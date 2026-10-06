@@ -1,4 +1,5 @@
-import { stripHtml } from '../helpers/stripHtml';
+import { replaceEmoticons } from '../helpers/replaceEmoticons';
+import { stripHtml, formatName } from '../helpers/stripHtml';
 import React, { useContext } from 'react';
 import Background from '../components/Background';
 import SearchBar from '../components/SearchBar';
@@ -438,7 +439,7 @@ const HomePage = () => {
               return (
                 <button key={contactId} type="button" className="chat-taskbar-button flex h-8 max-w-48 min-w-36 items-center gap-2 rounded px-2 text-left text-[12px] text-[#17364a]" onClick={() => focusChat(contactId)} title={stripHtml(contact.name || contact.username)}>
                   <img src={contact.image || '/assets/usertiles/default.png'} alt="" className="h-5 w-5 shrink-0 rounded-sm object-cover" />
-                  <span className="truncate">{stripHtml(contact.name || contact.username)}</span>
+                  <span className="truncate" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username, 30)) }} />
                 </button>
               );
             })}

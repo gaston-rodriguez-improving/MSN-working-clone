@@ -153,14 +153,19 @@ export function ChatProvider({ children }) {
         if (type === 'friend_request') {
           const request = { ...payload, user: payload.user };
           setFriendRequests((prev) => [request, ...prev.filter((item) => item.id !== request.id)]);
-          showNotification({ title: payload.user.username, text: 'sent you a friend invitation.', avatar: payload.user.avatar, actionLabel: 'Review invitation', onOpen: () => setFriendInvitationToReview(request) });
+          showNotification({ title: payload.user.username, text: 'sent you a friend invitation.', avatar: payload.user.avatar, actionLabel: 'Review invitation', onOpen: () => setFriendInvitationToReview(request) }, { soundPreference: 'friendInvitations' });
         }
         if (type === 'friend_request_update') {
           setFriendRequests((prev) => prev.filter((request) => request.id !== payload.id));
           if (payload.status === 'accepted') setContacts((prev) => prev.some((c) => c.id === payload.user.id) ? prev : [...prev, toContact(payload.user)]);
-          showNotification({ title: payload.user.username, text: payload.status === 'accepted' ? 'accepted your friend invitation.' : 'declined your friend invitation.', avatar: payload.user.avatar });
+          showNotification({ title: payload.user.username, text: payload.status === 'accepted' ? 'accepted your friend invitation.' : 'declined your friend invitation.', avatar: payload.user.avatar }, { soundPreference: 'friendInvitations' });
         }
-        if (type === 'user_status_update' || type === 'user_bio_update' || type === 'user_avatar_update' || type === 'user_username_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, name: payload.username || contact.name, message: payload.bio || contact.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
+        if (type === 'user_status_update') {
+          const contact = contactsRef.current.find((item) => item.id === payload.id);
+          if (contact && contact.status !== 'online' && payload.status === 'online') playSound(sounds.online, 'contactsOnline');
+          setContacts((prev) => prev.map((item) => item.id === payload.id ? { ...item, ...payload, name: payload.username || item.name, message: payload.bio || item.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || item.image } : item));
+        }
+        if (type === 'user_bio_update' || type === 'user_avatar_update' || type === 'user_username_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, name: payload.username || contact.name, message: payload.bio || contact.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
       } catch {
         return;
       }
@@ -196,5 +201,5 @@ export function ChatProvider({ children }) {
   }, []);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, loadMessages, subscribeToMessageEffects, playSound, send }}>{children}</ChatContext.Provider>;
 }

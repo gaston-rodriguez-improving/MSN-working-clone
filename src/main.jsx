@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
+import AdminPage from './pages/AdminPage';
 import PrivateRoute from './components/PrivateRoute';
 import { EmoticonProvider } from './contexts/EmoticonContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -24,6 +25,7 @@ const Main = () => {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/" element={<PrivateRoute element={HomePage} />} />
                   <Route path="/chat/:id" element={<PrivateRoute element={ChatPage} />} />
+                  <Route path="/admin" element={<PrivateRoute element={AdminPage} />} />
                   <Route path="/discordAuth" element={<DiscordAuthHandler />} />
                 </Routes>
               </Router>

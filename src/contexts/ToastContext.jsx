@@ -1,6 +1,7 @@
 import { formatName } from '../helpers/stripHtml';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import sounds from '../imports/sounds';
+import { readSoundPreferences } from '../helpers/soundPreferences';
 
 const ToastContext = createContext(null);
 
@@ -12,13 +13,14 @@ export function ToastProvider({ children }) {
     window.addEventListener('pointerdown', unlock); window.addEventListener('keydown', unlock);
     return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
   }, []);
-  const playSound = useCallback((sound = sounds.newmessage) => {
+  const playSound = useCallback((sound = sounds.newmessage, preference = 'messages') => {
+    if (!readSoundPreferences()[preference]) return;
     const audio = new Audio(sound);
     audio.play().catch(() => {});
   }, []);
-  const showNotification = useCallback((notification, { sound = true } = {}) => {
+  const showNotification = useCallback((notification, { sound = true, soundPreference = 'messages' } = {}) => {
     setToast(notification);
-    if (sound) playSound();
+    if (sound) playSound(sounds.newmessage, soundPreference);
   }, [playSound]);
   const closeNotification = useCallback(() => setToast(null), []);
   return <ToastContext.Provider value={{ showNotification, closeNotification, playSound }}>{children}{toast && <RetroNotification {...toast} onClose={closeNotification} />}</ToastContext.Provider>;
