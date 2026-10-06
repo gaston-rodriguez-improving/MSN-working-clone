@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Background from '../components/Background';
 import AvatarLarge from '../components/AvatarLarge';
 import { ChatContext } from '../contexts/ChatContext';
+import sounds from '../imports/sounds';
 import EmoticonSelector from '../components/EmoticonSelector';
 import WinkSelector from '../components/WinkSelector';
 import { winks_icons } from '../imports/winks';
@@ -89,7 +90,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
       if (message.drawAttention) {
         setShaking(true);
         if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
-        playSound(undefined, 'nudges');
+        playSound(sounds.nudge, 'nudges');
         nudgeTimeoutRef.current = setTimeout(() => setShaking(false), 500);
       }
       if (message.winks) setReceivedWink(message);
@@ -206,7 +207,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
 
   const handleNudgeClick = async () => {
     if (!conversationId) return;
-    playSound(undefined, 'nudges');
+    playSound(sounds.nudge, 'nudges');
     setShaking(true);
     if (nudgeTimeoutRef.current) clearTimeout(nudgeTimeoutRef.current);
     nudgeTimeoutRef.current = setTimeout(() => setShaking(false), 500);
