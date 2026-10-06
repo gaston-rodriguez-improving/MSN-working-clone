@@ -27,7 +27,7 @@ export function ToastProvider({ children }) {
 }
 export const useToast = () => useContext(ToastContext);
 function RetroNotification({ title, text, avatar, actionLabel = 'Open chat', onOpen, onClose }) {
-  useEffect(() => { const timer = setTimeout(onClose, 6000); return () => clearTimeout(timer); }, [onClose]);
+  useEffect(() => { const timer = setTimeout(onClose, 12000); return () => clearTimeout(timer); }, [onClose]);
   const image = avatar && avatar !== 'default' ? avatar : '/assets/usertiles/default.png';
   return <div className="retro-notification" role="status" onClick={() => { onOpen?.(); onClose(); }}>
     <button className="retro-notification-close" aria-label="Close notification" onClick={(event) => { event.stopPropagation(); onClose(); }}>×</button>
