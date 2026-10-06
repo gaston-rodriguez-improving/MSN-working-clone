@@ -1,12 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useReducer, useRef, useState } from 'react';
 import { AuthContext } from './AuthContext';
 import { useToast } from './ToastContext';
 import sounds from '../imports/sounds';
-import { getChatMessages, getUnreadChats, getFriendRequests, getFriends, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
+import { createListeningState, reduceListeningState } from '../features/listening/state';
+import { listeningEnabled } from '../features/musicConfig';
+import { getChatMessages, getUnreadChats, getFriendRequests, getFriends, getListeningActivities, getListeningPreference, saveListeningPreference, resetUnread, respondToFriendRequest, sendFriendRequest, sendMessage, startConversation, websocketUrl } from '../data/api';
 
 export const ChatContext = createContext(null);
 
-const toContact = (contact) => ({ ...contact, name: contact.username, message: contact.bio || '', image: contact.avatar === 'default' ? '/assets/usertiles/default.png' : contact.avatar });
+const toContact = (contact) => ({ ...contact, name: contact.username, message: contact.bio ?? '', image: contact.avatar === 'default' ? '/assets/usertiles/default.png' : contact.avatar });
 
 export function ChatProvider({ children }) {
   const { user } = useContext(AuthContext);
@@ -19,6 +21,9 @@ export function ChatProvider({ children }) {
   const [activeChatId, setActiveChatId] = useState(null);
   const [chatRequest, setChatRequest] = useState(null);
   const [unread, setUnread] = useState({});
+  const [listeningState, dispatchListening] = useReducer(reduceListeningState, undefined, createListeningState);
+  const listeningActivities = listeningState.activities;
+  const [listeningSharing, setListeningSharingState] = useState(false);
   const unreadRef = useRef({});
   const socketRef = useRef(null);
   const hasConnectedSocket = useRef(false);
@@ -29,9 +34,15 @@ export function ChatProvider({ children }) {
   const messageEffectListeners = useRef(new Map());
   const pendingMessageEffects = useRef(new Map());
   const serverEventListeners = useRef(new Set());
+  const socketOpenVersion = useRef(0);
+  const listeningEventVersion = useRef(0);
+  const listeningPreferenceSyncVersion = useRef(0);
+  const awaitingListeningSnapshot = useRef(false);
+  const pendingListeningDeltas = useRef([]);
+
   const publishServerEvent = useCallback((event) => {
     serverEventListeners.current.forEach((listener) => {
-      try { listener(event); } catch { return; }
+      try { listener(event); } catch { /* One feature listener must not block other subscribers. */ }
     });
   }, []);
   const subscribeToServerEvents = useCallback((listener) => {
@@ -42,6 +53,14 @@ export function ChatProvider({ children }) {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
     try { socket.send(JSON.stringify({ type, payload })); return true; } catch { return false; }
+  }, []);
+  const setListeningSharing = useCallback(async (share) => {
+    if (!listeningEnabled) return false;
+    const { data } = await saveListeningPreference(Boolean(share));
+    setListeningSharingState(Boolean(data.share));
+    listeningPreferenceSyncVersion.current += 1;
+    localStorage.setItem('messenger_listening_sharing', String(Boolean(data.share)));
+    return Boolean(data.share);
   }, []);
 
   const subscribeToMessageEffects = useCallback((chatId, listener) => {
@@ -94,6 +113,44 @@ export function ChatProvider({ children }) {
   useEffect(() => { activeRef.current = activeChatId; }, [activeChatId]);
   useEffect(() => { unreadRef.current = unread; }, [unread]);
 
+  useEffect(() => {
+    if (!user || !listeningEnabled) {
+      dispatchListening({ type: 'reset' });
+      setListeningSharingState(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const startedAtSocketVersion = socketOpenVersion.current;
+    const startedAtListeningVersion = listeningEventVersion.current;
+    const startedAtPreferenceVersion = listeningPreferenceSyncVersion.current;
+    Promise.all([getListeningActivities(), getListeningPreference()]).then(([activitiesResponse, preferenceResponse]) => {
+      if (cancelled) return;
+      if (startedAtSocketVersion === socketOpenVersion.current && startedAtListeningVersion === listeningEventVersion.current) dispatchListening({ type: 'rest', activities: activitiesResponse.data.activities || [] });
+      if (startedAtPreferenceVersion === listeningPreferenceSyncVersion.current) {
+        const share = Boolean(preferenceResponse.data.share);
+        setListeningSharingState(share);
+        localStorage.setItem('messenger_listening_sharing', String(share));
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const syncListeningPreference = (event) => {
+      if (event.key !== 'messenger_listening_sharing') return;
+      listeningPreferenceSyncVersion.current += 1;
+      setListeningSharingState(event.newValue === 'true');
+    };
+    window.addEventListener('storage', syncListeningPreference);
+    return () => window.removeEventListener('storage', syncListeningPreference);
+  }, []);
+
+  useEffect(() => {
+    if (!Object.keys(listeningActivities).length) return undefined;
+    const timer = setInterval(() => dispatchListening({ type: 'expire', now: Date.now() }), 1000);
+    return () => clearInterval(timer);
+  }, [listeningActivities]);
+
   const appendMessage = useCallback((message) => {
     if (messageIds.current.has(message.id)) return false;
     messageIds.current.add(message.id);
@@ -136,7 +193,7 @@ export function ChatProvider({ children }) {
   useEffect(() => {
     if (!user) return undefined;
     hasConnectedSocket.current = false;
-    let closed = false; let socket; let retryTimer;
+    let closed = false; let socket; let retryTimer; let isReconnect = false;
     const refreshUnread = (notify) => getUnreadChats().then(({ data }) => {
       const next = {}; let increased = null;
       (data.conversations || []).forEach((chat) => {
@@ -159,20 +216,28 @@ export function ChatProvider({ children }) {
     socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(token)}`);
     socketRef.current = socket;
     socket.onopen = () => {
-      const isReconnect = hasConnectedSocket.current;
+      isReconnect = hasConnectedSocket.current;
       hasConnectedSocket.current = true;
+      socketOpenVersion.current += 1;
+      awaitingListeningSnapshot.current = true;
+      pendingListeningDeltas.current = [];
       refreshUnread(isReconnect);
       if (!isReconnect) return;
       Promise.all([getFriends(), getFriendRequests()]).then(([usersResponse, requestsResponse]) => {
         const list = (usersResponse.data.users || []).map(toContact);
-        setContacts((prev) => { const known = new Set(prev.map((contact) => contact.id)); return [...prev, ...list.filter((contact) => !known.has(contact.id))]; });
+        setContacts(list);
         setFriendRequests(requestsResponse.data.requests || []);
       }).catch(() => {});
     };
-    socket.onclose = () => { if (!closed) retryTimer = setTimeout(connect, 2000); };
+    socket.onclose = () => {
+      awaitingListeningSnapshot.current = false;
+      pendingListeningDeltas.current = [];
+      if (!closed) retryTimer = setTimeout(connect, 2000);
+    };
     socket.onmessage = (event) => {
       try {
         const { type, payload } = JSON.parse(event.data);
+        if (type === 'socket_ready') publishServerEvent({ type: 'socket_open', payload: { reconnect: isReconnect } });
         if (type === 'message' && appendMessage(payload)) {
           const listeners = messageEffectListeners.current.get(Number(payload.chatId));
           const isEffect = payload.drawAttention || payload.winks;
@@ -209,9 +274,20 @@ export function ChatProvider({ children }) {
         if (type === 'user_status_update') {
           const contact = contactsRef.current.find((item) => item.id === payload.id);
           if (contact && contact.status !== 'online' && payload.status === 'online') playSound(sounds.online, 'contactsOnline');
-          setContacts((prev) => prev.map((item) => item.id === payload.id ? { ...item, ...payload, name: payload.username || item.name, message: payload.bio || item.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || item.image } : item));
+          setContacts((prev) => prev.map((item) => item.id === payload.id ? { ...item, ...payload, name: payload.username || item.name, message: payload.bio !== undefined ? payload.bio : item.message, image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || item.image } : item));
         }
-        if (type === 'user_bio_update' || type === 'user_avatar_update' || type === 'user_username_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, name: payload.username || contact.name, message: payload.bio || contact.message || '', image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
+        if (type === 'user_bio_update' || type === 'user_avatar_update' || type === 'user_username_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, name: payload.username || contact.name, message: payload.bio !== undefined ? payload.bio : contact.message, image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
+        if (listeningEnabled && type === 'listening_activity') {
+          listeningEventVersion.current += 1;
+          if (awaitingListeningSnapshot.current) pendingListeningDeltas.current.push(payload);
+          else dispatchListening({ type: 'delta', envelope: payload });
+        }
+        if (listeningEnabled && type === 'listening_snapshot') {
+          listeningEventVersion.current += 1;
+          dispatchListening({ type: 'snapshot', envelopes: payload.activities || [] });
+          awaitingListeningSnapshot.current = false;
+          pendingListeningDeltas.current.splice(0).forEach((envelope) => dispatchListening({ type: 'delta', envelope }));
+        }
         publishServerEvent({ type, payload });
       } catch {
         return;
@@ -256,5 +332,5 @@ export function ChatProvider({ children }) {
   }, [markConversationRead]);
   const send = useCallback(async (chatId, content, options = {}) => { const { data } = await sendMessage({ chatId, content, ...options }); appendMessage(data); return data; }, [appendMessage]);
 
-  return <ChatContext.Provider value={{ unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, markConversationRead, loadMessages, subscribeToMessageEffects, subscribeToServerEvents, sendSocketEvent, playSound, send }}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={{ unread, chatRequest, contacts, friendRequests, friendInvitationToReview, setFriendInvitationToReview, messages, hasMoreMessages, activeChatId, setActiveChatId, sendFriendInvitation, respondToFriendInvitation, openConversation, markConversationRead, loadMessages, subscribeToMessageEffects, subscribeToServerEvents, sendSocketEvent, listeningActivities, listeningSharing, setListeningSharing, playSound, send }}>{children}</ChatContext.Provider>;
 }

@@ -10,6 +10,7 @@ import openTabArrow from '/assets/general/open_tab_arrow.png';
 import closedTabArrow from '/assets/general/closed_tab_arrow.png';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import { useNavigate } from 'react-router-dom';
+import ListeningStatus from './ListeningStatus';
 
 const ContactCategory = ({ title, contacts, count, onOpenChat, onContextMenu, onDropContact, categoryId }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -65,7 +66,9 @@ export const ContactCategoryGroup = ({ title, count, children }) => {
 
 const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
   const navigate = useNavigate();
-  const hasUnread = !!useContext(ChatContext)?.unread?.[contact.id];
+  const chat = useContext(ChatContext);
+  const hasUnread = !!chat?.unread?.[contact.id];
+  const activity = chat?.listeningActivities?.[contact.id];
 
   const whichStatus = (contactStatus) => {
     switch (contactStatus) {
@@ -86,7 +89,7 @@ const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
     navigate(`/chat/${contact.id}`);
   };
 
-  const statusMessage = contact.message || contact.bio || contact.statusMessage || contact.status_message || '';
+  const statusMessage = contact.message ?? contact.bio ?? contact.statusMessage ?? contact.status_message ?? '';
 
   return (
     <div
@@ -99,9 +102,11 @@ const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
       <div className="mt-1 w-2">
         <img src={whichStatus(contact.status)} alt="contact-status" />
       </div>
-      <span className={`flex gap-1 ${hasUnread ? 'unread-contact-name' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username)) }}></span>
-      <span>{!statusMessage ? null : '-'}</span>
-      <span className="flex gap-1 text-gray-400" dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(statusMessage, 80)) }}></span>
+      <span className={`flex gap-1 ${unreadCount > 0 ? 'unread-contact-name' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username)) }}></span>
+      {(activity || statusMessage) && <span>-</span>}
+      <span className="min-w-0 truncate text-gray-400">
+        {activity ? <ListeningStatus activity={activity} bio={statusMessage} /> : <span dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(statusMessage, 80)) }} />}
+      </span>
     </div>
   );
 };

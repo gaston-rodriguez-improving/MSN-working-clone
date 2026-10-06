@@ -1,5 +1,5 @@
 import { formatName } from '../helpers/stripHtml';
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import arrow from '/assets/general/arrow.png';
 import ChangeDisplayPictureModal from './ChangeDisplayPictureModal';
@@ -9,7 +9,7 @@ import ChangeSceneModal from '../components/ChangeSceneModal';
 import { AuthContext } from '../contexts/AuthContext';
 
 const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName = true, value }) => {
-  const [user, setUser] = useState({
+  const [user] = useState({
     loggedin: localStorage.getItem('loggedin') || '',
     email: localStorage.getItem('email') || '',
     message: localStorage.getItem('message') || '',
@@ -20,7 +20,7 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
       JSON.parse(localStorage.getItem('messenger_user') || 'null')?.username ||
       '',
   });
-  const { user: account } = useContext(AuthContext);
+  const { user: account, logout } = useContext(AuthContext);
   const displayName = account?.username || user.name || user.email;
 
   const [changePictureShowModal, setShowChangePictureModal] = useState(false);
@@ -46,6 +46,7 @@ const Dropdown = ({ options = [], onChange, showStatusDots = false, showUserName
         break;
       case 'Sign out':
         localStorage.removeItem('loggedin');
+        logout();
         navigate('/login');
         break;
       case 'ChangeDisplayPicture':

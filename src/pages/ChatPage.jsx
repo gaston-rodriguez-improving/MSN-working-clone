@@ -24,6 +24,7 @@ import chatPointBackground from '/assets/background/chat_background_point.png';
 import chatIconsSeparator from '/assets/background/chat_icons_separator.png';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import { formatName } from '../helpers/stripHtml';
+import ListeningStatus from '../components/ListeningStatus';
 
 const EMPTY_MESSAGES = [];
 
@@ -37,7 +38,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
   const [lastMessageTime, setLastMessageTime] = useState(null);
   const user = JSON.parse(localStorage.getItem('messenger_user') || 'null');
   const { selectedEmoticon, setSelectedEmoticon } = useContext(EmoticonContext);
-  const { activeChatId, unread, contacts, messages: conversations, hasMoreMessages, loadMessages, openConversation, markConversationRead, setActiveChatId, subscribeToMessageEffects, subscribeToServerEvents, sendSocketEvent, playSound, send } = useContext(ChatContext);
+  const { activeChatId, unread, contacts, listeningActivities, messages: conversations, hasMoreMessages, loadMessages, openConversation, markConversationRead, setActiveChatId, subscribeToMessageEffects, subscribeToServerEvents, sendSocketEvent, playSound, send } = useContext(ChatContext);
   const [conversationId, setConversationId] = useState(null);
   const messageContainerRef = useRef(null);
   const olderScrollAnchorRef = useRef(null);
@@ -392,7 +393,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
               </div>
             </div>
             <div className="win7 flex h-full min-h-0 flex-col">
-              <div className="flex items-center white-light mb-10">
+              <div className="flex flex-wrap items-center gap-x-1 white-light mb-10">
                 <p
                   className="flex gap-1 text-lg"
                   dangerouslySetInnerHTML={{
@@ -400,6 +401,7 @@ export const ChatWindow = ({ contactId, onClose, onFocus, onMinimize, isMinimize
                   }}
                 ></p>
                 <p className="ml-1 capitalize">({contact.status})</p>
+                <ListeningStatus activity={listeningActivities[contact.id]} bio={contact.message || ''} className="basis-full pl-1 text-sm" />
               </div>
               <img src={divider} alt="" className="mb-[-5px] pointer-events-none" />
 

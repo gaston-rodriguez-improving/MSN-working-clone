@@ -10,7 +10,7 @@ import UnableToConnectModal from '../components/UnableToConnectModal';
 import { AuthContext } from '../contexts/AuthContext';
 import { signInWithMicrosoft } from '../utils/microsoftAuth';
 
-const SHOW_EMAIL_AUTH = false;
+const SHOW_EMAIL_AUTH = import.meta.env.DEV && import.meta.env.VITE_ENABLE_EMAIL_AUTH === 'true';
 
 const LoginPage = () => {
   const navigate = useNavigate();

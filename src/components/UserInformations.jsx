@@ -1,6 +1,6 @@
 import { formatName } from '../helpers/stripHtml';
 // UserInformation.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import AvatarSmall from '../components/AvatarSmall';
 import arrow from '/assets/general/arrow.png';
 import Dropdown from './Dropdown';
@@ -8,16 +8,21 @@ import ChangeDisplayPictureModal from './ChangeDisplayPictureModal';
 import statusFrames from '../imports/statusFrames';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import { updateBio } from '../data/api';
+import { ChatContext } from '../contexts/ChatContext';
+import { AuthContext } from '../contexts/AuthContext';
+import ListeningStatus from './ListeningStatus';
+import { listeningEnabled } from '../features/musicConfig';
 
 const UserInformation = () => {
+  const { user: account } = useContext(AuthContext);
+  const { listeningActivities, listeningSharing, setListeningSharing } = useContext(ChatContext);
   const [user, setUser] = useState({
-    message: localStorage.getItem('message') || '',
+    message: account?.bio ?? localStorage.getItem('message') ?? '',
     status: localStorage.getItem('status') || 'Available',
     name: localStorage.getItem('name') || localStorage.getItem('discord_username') || '',
   });
 
-  const account = JSON.parse(localStorage.getItem('messenger_user') || 'null');
-  const displayName = user.name || account?.username || account?.email || 'User';
+  const ownActivity = account?.id == null ? null : listeningActivities[account.id];
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState(user.message || '');
   const [showChangePictureModal, setShowChangePictureModal] = useState(false);
@@ -102,7 +107,9 @@ const UserInformation = () => {
             />
           ) : (
             <p className="cursor-pointer flex gap-1">
-              {!message ? (
+              {ownActivity ? (
+                <ListeningStatus activity={ownActivity} bio={message} />
+              ) : !message ? (
                 'Share a quick message...'
               ) : (
                 <span
@@ -118,6 +125,10 @@ const UserInformation = () => {
             <img src={arrow} alt="arrow icon" />
           </div>
         </div>
+        {listeningEnabled && <label className="mt-1 flex items-center gap-1 text-[11px] text-[#24466a]">
+          <input type="checkbox" checked={listeningSharing} onChange={(event) => setListeningSharing(event.target.checked).catch(() => {})} />
+          Share what I’m listening to with friends
+        </label>}
       </div>
       {showChangePictureModal && <ChangeDisplayPictureModal setShowChangePictureModal={setShowChangePictureModal} />}
     </div>

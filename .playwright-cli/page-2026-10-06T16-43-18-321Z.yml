@@ -1,0 +1,58 @@
+- generic [ref=e44]:
+  - generic [ref=e45]:
+    - generic [ref=e46]:
+      - generic [ref=e48] [cursor=pointer]:
+        - img "Avatar" [ref=e49]
+        - img "Status Frame" [ref=e50]
+      - generic [ref=e51]:
+        - generic [ref=e54] [cursor=pointer]:
+          - generic [ref=e55]:
+            - paragraph [ref=e56]: Winamp QA
+            - paragraph [ref=e57]: (online)
+          - img "Toggle Dropdown" [ref=e58]
+        - generic [ref=e59]:
+          - paragraph [ref=e60] [cursor=pointer]: Share a quick message...
+          - img "arrow icon" [ref=e62]
+        - generic [ref=e63]:
+          - checkbox "Share what I’m listening to with friends"
+          - text: Share what I’m listening to with friends
+    - generic [ref=e64]:
+      - link "Open Winamp in a new tab" [ref=e65] [cursor=pointer]:
+        - /url: /winamp
+        - text: ♫ Winamp
+      - link "Open Outlook Mail" [ref=e66] [cursor=pointer]:
+        - /url: https://outlook.cloud.microsoft/mail/
+        - img "Outlook Mail" [ref=e67]
+  - generic [ref=e68]:
+    - generic [ref=e69]:
+      - searchbox "Search your contacts" [ref=e70]
+      - button "Add a friend" [ref=e72] [cursor=pointer]
+      - button "Switch to Categories view" [ref=e75] [cursor=pointer]
+    - generic [ref=e76]:
+      - generic [ref=e78] [cursor=pointer]:
+        - heading [level=2] [ref=e79]:
+          - img "close tab" [ref=e80]
+        - img "favorites icon" [ref=e81]
+        - paragraph [ref=e82]: Favorites
+        - paragraph [ref=e83]: (0)
+      - generic [ref=e85] [cursor=pointer]:
+        - heading [level=2] [ref=e86]:
+          - img "close tab" [ref=e87]
+        - paragraph [ref=e88]: Available
+        - paragraph [ref=e89]: (0)
+      - generic [ref=e91] [cursor=pointer]:
+        - heading [level=2] [ref=e92]:
+          - img "close tab" [ref=e93]
+        - paragraph [ref=e94]: Offline
+        - paragraph [ref=e95]: (0)
+  - generic [ref=e96]:
+    - generic [ref=e98]:
+      - paragraph [ref=e99]: What's new
+      - generic [ref=e100] [cursor=pointer]
+      - generic [ref=e101] [cursor=pointer]
+      - generic [ref=e102] [cursor=pointer]
+    - paragraph [ref=e103]:
+      - text: If you want to know the secrets of this project, please
+      - link "click here" [ref=e104] [cursor=pointer]:
+        - /url: https://www.youtube.com/watch?v=5SZYz7lZRRI&list=RD5SZYz7lZRRI&start_radio=1
+  - contentinfo [ref=e105]

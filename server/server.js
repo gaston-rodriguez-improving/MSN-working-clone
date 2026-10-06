@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const { WebSocketServer, WebSocket } = require('ws');
+const { parseYouTubeVideoId } = require('./music');
 
 const root = __dirname;
 const db = new Pool({
@@ -119,6 +120,135 @@ app.put('/contact-preferences', auth, asyncRoute(async (req, res) => {
   res.json({ preferences: result.rows[0].preferences });
 }));
 app.get('/users', auth, asyncRoute(async (req, res) => { const search = `%${String(req.query.search || '').trim()}%`; const rows = (await db.query('SELECT * FROM users WHERE company_id = $1 AND event_id = $2 AND id != $3 AND (username ILIKE $4 OR email ILIKE $4) ORDER BY lower(username)', [config.companyId, config.eventId, req.user.id, search])).rows; res.json({ users: rows.map(publicUser) }); }));
+
+let catalogRevision = 0;
+const musicTrackView = (row, userId, isAdmin = false) => ({ id: row.id, videoId: row.video_id, title: row.title, artist: row.artist, contributor: { id: row.contributor_id, username: row.contributor_username }, createdAt: row.created_at, canRemove: row.contributor_id === userId || isAdmin });
+const musicTrackSelect = `SELECT t.*, u.username AS contributor_username, u.email AS contributor_email FROM event_music_tracks t JOIN users u ON u.id = t.contributor_id`;
+async function broadcastCatalogChange() {
+  const ids = (await db.query('SELECT id FROM users WHERE company_id = $1 AND event_id = $2', [config.companyId, config.eventId])).rows.map(x => x.id);
+  broadcast(ids, 'music_catalog_changed', { scope: { companyId: config.companyId, eventId: config.eventId }, revision: ++catalogRevision });
+}
+app.get('/music/tracks', auth, asyncRoute(async (req, res) => {
+  const rows = (await db.query(`${musicTrackSelect} WHERE t.company_id = $1 AND t.event_id = $2 AND t.removed_at IS NULL ORDER BY t.id`, [config.companyId, config.eventId])).rows;
+  const isAdmin = req.authProvider === 'microsoft' && adminEmails.has(String(req.user.email || '').trim().toLowerCase());
+  res.set('Cache-Control', 'no-store').json({ tracks: rows.map(row => musicTrackView(row, req.user.id, isAdmin)) });
+}));
+app.post('/music/tracks', auth, asyncRoute(async (req, res) => {
+  const videoId = parseYouTubeVideoId(String(req.body?.url || ''));
+  const title = String(req.body?.title || '').trim(); const artist = String(req.body?.artist || '').trim();
+  if (!videoId) return res.status(400).json({ error: 'A supported YouTube video URL is required' });
+  if (!title || title.length > 120) return res.status(400).json({ error: 'Title is required and must be at most 120 characters' });
+  if (artist.length > 80) return res.status(400).json({ error: 'Artist must be at most 80 characters' });
+  try {
+    const inserted = await db.query(`INSERT INTO event_music_tracks(company_id,event_id,video_id,title,artist,contributor_id)
+      VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, [config.companyId, config.eventId, videoId, title, artist, req.user.id]);
+    const row = (await db.query(`${musicTrackSelect} WHERE t.id = $1`, [inserted.rows[0].id])).rows[0];
+    const isAdmin = req.authProvider === 'microsoft' && adminEmails.has(String(req.user.email || '').trim().toLowerCase());
+    await broadcastCatalogChange(); res.status(201).json({ track: musicTrackView(row, req.user.id, isAdmin) });
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ error: 'This video is already in the shared catalog' });
+    throw error;
+  }
+}));
+app.delete('/music/tracks/:id', auth, asyncRoute(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(404).json({ error: 'Track not found' });
+  const row = (await db.query(`SELECT t.*, u.email AS contributor_email FROM event_music_tracks t JOIN users u ON u.id=t.contributor_id
+    WHERE t.id=$1 AND t.company_id=$2 AND t.event_id=$3 AND t.removed_at IS NULL`, [id, config.companyId, config.eventId])).rows[0];
+  if (!row) return res.status(404).json({ error: 'Track not found' });
+  const isAdmin = req.authProvider === 'microsoft' && adminEmails.has(String(req.user.email || '').trim().toLowerCase());
+  if (row.contributor_id !== req.user.id && !isAdmin) return res.status(403).json({ error: 'Only the contributor or an administrator can remove this track' });
+  await db.query('UPDATE event_music_tracks SET removed_at=CURRENT_TIMESTAMP, removed_by=$1 WHERE id=$2 AND removed_at IS NULL', [req.user.id, id]);
+  await broadcastCatalogChange(); res.json({ ok: true });
+}));
+function listeningEnvelope(userId, revision, activity) { return { userId, revision, activity }; }
+function activityView(row) { return { userId: row.user_id, username: row.username, sessionId: row.session_id, revision: Number(row.revision), trackId: row.track_id, title: row.title, artist: row.artist, updatedAt: row.updated_at, expiresAt: row.expires_at }; }
+async function sendListening(userId, envelope) {
+  const pref = (await db.query('SELECT share_activity FROM user_music_preferences WHERE user_id=$1', [userId])).rows[0];
+  const friendIds = (envelope.activity === null || pref?.share_activity) ? (await db.query(`SELECT CASE WHEN fr.sender_id=$1 THEN fr.recipient_id ELSE fr.sender_id END AS id
+    FROM friend_requests fr JOIN users u ON u.id=CASE WHEN fr.sender_id=$1 THEN fr.recipient_id ELSE fr.sender_id END
+    WHERE fr.status='accepted' AND (fr.sender_id=$1 OR fr.recipient_id=$1) AND u.company_id=$2 AND u.event_id=$3`, [userId, config.companyId, config.eventId])).rows.map(row => row.id) : [];
+  broadcast([userId, ...friendIds], 'listening_activity', envelope);
+}
+async function removeExpiredActivities() {
+  const client = await db.connect(); const expired = [];
+  try {
+    await client.query('BEGIN');
+    const rows = (await client.query('SELECT user_id FROM user_music_activities WHERE expires_at <= CURRENT_TIMESTAMP ORDER BY user_id')).rows;
+    for (const row of rows) {
+      await client.query('INSERT INTO user_music_preferences(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING', [row.user_id]);
+      const pref = (await client.query('SELECT revision FROM user_music_preferences WHERE user_id=$1 FOR UPDATE', [row.user_id])).rows[0];
+      await client.query('SELECT user_id FROM user_music_activities WHERE user_id=$1 FOR UPDATE', [row.user_id]);
+      const deleted = (await client.query('DELETE FROM user_music_activities WHERE user_id=$1 AND expires_at <= CURRENT_TIMESTAMP RETURNING user_id', [row.user_id])).rows[0];
+      if (deleted) {
+        const revision = Number(pref.revision) + 1;
+        await client.query('UPDATE user_music_preferences SET revision=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1', [row.user_id, revision]);
+        expired.push({ userId: row.user_id, revision });
+      }
+    }
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  for (const item of expired) {
+    await sendListening(item.userId, listeningEnvelope(item.userId, item.revision, null));
+  }
+}
+const listeningSelect = `SELECT a.*, u.username FROM user_music_activities a JOIN users u ON u.id=a.user_id`;
+async function listListening(userId) {
+  await removeExpiredActivities();
+  return (await db.query(`${listeningSelect} WHERE (a.user_id=$1 OR (EXISTS(SELECT 1 FROM user_music_preferences p WHERE p.user_id=a.user_id AND p.share_activity=TRUE)
+    AND EXISTS(SELECT 1 FROM friend_requests fr WHERE fr.status='accepted' AND ((fr.sender_id=$1 AND fr.recipient_id=a.user_id) OR (fr.recipient_id=$1 AND fr.sender_id=a.user_id)))))
+    AND u.company_id=$2 AND u.event_id=$3 ORDER BY a.user_id`, [userId, config.companyId, config.eventId])).rows;
+}
+async function pushListeningSnapshot(userId, targetSocket = null) {
+  await removeExpiredActivities();
+  const rows = (await db.query(`SELECT u.id AS snapshot_user_id,u.username,COALESCE(p.revision,0) AS preference_revision,
+      a.session_id,a.client_sequence,a.track_id,a.title,a.artist,a.revision AS activity_revision,a.started_at,a.updated_at,a.expires_at
+    FROM users u
+    LEFT JOIN user_music_preferences p ON p.user_id=u.id
+    LEFT JOIN user_music_activities a ON a.user_id=u.id
+    WHERE u.company_id=$2 AND u.event_id=$3 AND (u.id=$1 OR EXISTS(
+      SELECT 1 FROM friend_requests fr WHERE fr.status='accepted' AND ((fr.sender_id=$1 AND fr.recipient_id=u.id) OR (fr.recipient_id=$1 AND fr.sender_id=u.id))))
+    ORDER BY u.id`, [userId, config.companyId, config.eventId])).rows;
+  const activities = rows.map(row => {
+    const revision = Number(row.activity_revision ?? row.preference_revision);
+    const activity = row.session_id ? { userId: row.snapshot_user_id, username: row.username, sessionId: row.session_id, revision: Number(row.activity_revision), trackId: row.track_id, title: row.title, artist: row.artist, updatedAt: row.updated_at, expiresAt: row.expires_at } : null;
+    return listeningEnvelope(row.snapshot_user_id, revision, activity);
+  });
+  const message = JSON.stringify({ type: 'listening_snapshot', payload: { activities } });
+  if (targetSocket) {
+    if (targetSocket.readyState === WebSocket.OPEN) targetSocket.send(message);
+  } else broadcast([userId], 'listening_snapshot', { activities });
+}
+app.get('/music/listening', auth, asyncRoute(async (req, res) => {
+  const rows = await listListening(req.user.id);
+  res.set('Cache-Control', 'no-store').json({ activities: rows.map(activityView) });
+}));
+app.get('/music/listening-preference', auth, asyncRoute(async (req, res) => {
+  const row = (await db.query('SELECT share_activity FROM user_music_preferences WHERE user_id=$1', [req.user.id])).rows[0];
+  res.json({ share: Boolean(row?.share_activity) });
+}));
+app.put('/music/listening-preference', auth, asyncRoute(async (req, res) => {
+  if (typeof req.body?.share !== 'boolean') return res.status(400).json({ error: 'share must be a boolean' });
+  const client = await db.connect(); let removed = false; let share; let clearRevision = null;
+  try {
+    await client.query('BEGIN');
+    await client.query('INSERT INTO user_music_preferences(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING', [req.user.id]);
+    const pref = (await client.query('SELECT revision FROM user_music_preferences WHERE user_id=$1 FOR UPDATE', [req.user.id])).rows[0];
+    share = (await client.query('UPDATE user_music_preferences SET share_activity=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING share_activity', [req.user.id, req.body.share])).rows[0].share_activity;
+    if (!req.body.share) {
+      removed = Boolean((await client.query('DELETE FROM user_music_activities WHERE user_id=$1 RETURNING user_id', [req.user.id])).rows[0]);
+      if (removed) {
+        clearRevision = Number(pref.revision) + 1;
+        await client.query('UPDATE user_music_preferences SET revision=$2 WHERE user_id=$1', [req.user.id, clearRevision]);
+      }
+    }
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  if (removed) {
+    await sendListening(req.user.id, listeningEnvelope(req.user.id, clearRevision, null));
+  }
+  res.json({ share });
+}));
 app.get('/friends', auth, asyncRoute(async (req, res) => { const rows = (await db.query("SELECT u.* FROM users u JOIN friend_requests fr ON u.id = CASE WHEN fr.sender_id = $1 THEN fr.recipient_id ELSE fr.sender_id END WHERE (fr.sender_id = $2 OR fr.recipient_id = $3) AND fr.status = 'accepted' AND u.company_id = $4 AND u.event_id = $5 ORDER BY lower(u.username)", [req.user.id, req.user.id, req.user.id, config.companyId, config.eventId])).rows; res.json({ users: rows.map(publicUser) }); }));
 const friendRequestView = row => ({ id: row.id, status: row.status, message: row.message, createdAt: row.created_at, user: publicUser(row.user) });
 app.get('/friend-requests', auth, asyncRoute(async (req, res) => {
@@ -147,6 +277,10 @@ app.patch('/friend-requests/:id', auth, asyncRoute(async (req, res) => {
   if (!request) return res.status(404).json({ error: 'Invitation not found' });
   await db.query('UPDATE friend_requests SET status = $1 WHERE id = $2', [status, requestId]);
   broadcast([request.sender_id], 'friend_request_update', { id: requestId, status, user: publicUser(req.user) });
+  if (status === 'accepted') {
+    await pushListeningSnapshot(req.user.id);
+    await pushListeningSnapshot(request.sender_id);
+  }
   res.json({ id: requestId, status });
 }));
 app.post('/conversations', auth, asyncRoute(async (req, res) => {
@@ -193,6 +327,51 @@ app.get('/messages/chat/:chatId', auth, asyncRoute(async (req, res) => {
 }));
 const sockets = new Map();
 function broadcast(userIds, type, payload) { for (const userId of userIds) for (const socket of (sockets.get(userId) || [])) if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, payload })); }
+async function updateListening(userId, body, socketId) {
+  const action = body?.action; const sessionId = String(body?.sessionId || ''); const sequence = Number(body?.sequence);
+  if (!['start', 'heartbeat', 'clear'].includes(action) || sessionId.length < 8 || sessionId.length > 128 || !Number.isSafeInteger(sequence) || sequence < 0) return;
+  const client = await db.connect(); let envelope = null;
+  try {
+    await client.query('BEGIN');
+    await client.query('INSERT INTO user_music_preferences(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING', [userId]);
+    const pref = (await client.query('SELECT share_activity,revision FROM user_music_preferences WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
+    if (!pref.share_activity) { await client.query('COMMIT'); return; }
+    await client.query(`INSERT INTO user_music_session_sequences(user_id,session_id,client_sequence) VALUES($1,$2,-1)
+      ON CONFLICT(user_id,session_id) DO NOTHING`, [userId, sessionId]);
+    const session = (await client.query('SELECT client_sequence FROM user_music_session_sequences WHERE user_id=$1 AND session_id=$2 FOR UPDATE', [userId, sessionId])).rows[0];
+    if (sequence <= Number(session.client_sequence)) { await client.query('COMMIT'); return; }
+    await client.query('UPDATE user_music_session_sequences SET client_sequence=$3 WHERE user_id=$1 AND session_id=$2', [userId, sessionId, sequence]);
+    const existing = (await client.query('SELECT * FROM user_music_activities WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
+    if (action === 'start') {
+      const trackId = Number(body.trackId);
+      const track = (await client.query(`SELECT id,title,artist FROM event_music_tracks WHERE id=$1 AND company_id=$2 AND event_id=$3 AND removed_at IS NULL`, [trackId, config.companyId, config.eventId])).rows[0];
+      if (!track) { await client.query('COMMIT'); return; }
+      const revision = Number(pref.revision) + 1;
+      const row = (await client.query(`INSERT INTO user_music_activities(user_id,session_id,socket_id,client_sequence,track_id,title,artist,revision,started_at,updated_at,expires_at)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP+INTERVAL '60 seconds')
+        ON CONFLICT(user_id) DO UPDATE SET session_id=EXCLUDED.session_id,socket_id=EXCLUDED.socket_id,client_sequence=EXCLUDED.client_sequence,track_id=EXCLUDED.track_id,title=EXCLUDED.title,artist=EXCLUDED.artist,revision=EXCLUDED.revision,started_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP,expires_at=EXCLUDED.expires_at
+        RETURNING *`, [userId, sessionId, socketId, sequence, track.id, track.title, track.artist, revision])).rows[0];
+      await client.query('UPDATE user_music_preferences SET revision=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1', [userId, revision]);
+      envelope = listeningEnvelope(userId, revision, activityView({ ...row, username: (await getUser(userId)).username }));
+    } else if (action === 'heartbeat') {
+      if (!existing || existing.session_id !== sessionId || existing.socket_id !== socketId || sequence <= Number(existing.client_sequence) || existing.expires_at <= new Date()) { await client.query('COMMIT'); return; }
+      const revision = Number(pref.revision) + 1;
+      const row = (await client.query(`UPDATE user_music_activities SET client_sequence=$2,revision=$3,updated_at=CURRENT_TIMESTAMP,expires_at=CURRENT_TIMESTAMP+INTERVAL '60 seconds' WHERE user_id=$1 AND socket_id=$4 RETURNING *`, [userId, sequence, revision, socketId])).rows[0];
+      await client.query('UPDATE user_music_preferences SET revision=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1', [userId, revision]);
+      envelope = listeningEnvelope(userId, revision, activityView({ ...row, username: (await getUser(userId)).username }));
+    } else {
+      if (!existing || existing.session_id !== sessionId || existing.socket_id !== socketId || sequence <= Number(existing.client_sequence)) { await client.query('COMMIT'); return; }
+      const revision = Number(pref.revision) + 1;
+      await client.query('DELETE FROM user_music_activities WHERE user_id=$1', [userId]);
+      await client.query('UPDATE user_music_preferences SET revision=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1', [userId, revision]);
+      envelope = listeningEnvelope(userId, revision, null);
+    }
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  if (envelope) await sendListening(userId, envelope);
+  return Boolean(envelope);
+}
+const expirySweep = setInterval(() => removeExpiredActivities().catch(() => {}), 5000); expirySweep.unref();
 async function saveMessage(userId, body) {
   const chatId = Number(body?.chatId ?? body?.chat_id); const content = String(body?.content ?? '');
   if (!chatId || !content.trim() || !await conversation(chatId) || !await member(chatId, userId)) return null;
@@ -223,26 +402,47 @@ const heartbeat = setInterval(() => { for (const client of wss.clients) { if (cl
 heartbeat.unref();
 wss.on('close', () => clearInterval(heartbeat));
 wss.on('connection', (socket, req) => {
-  let user;
+  let user; let ready = false; let messageChain = Promise.resolve(); const pendingMessages = []; const socketSessions = new Map(); const socketId = crypto.randomUUID();
   socket.isAlive = true;
   socket.on('pong', () => { socket.isAlive = true; });
-  socket.on('close', () => { if (!user) return; sockets.get(user.id)?.delete(socket); if (!sockets.get(user.id)?.size) { sockets.delete(user.id); db.query("UPDATE users SET status = 'offline' WHERE id = $1", [user.id]).then(async () => broadcastUser('user_status_update', await getUser(user.id))).catch(() => {}); } });
+  const processSocketMessage = raw => {
+    messageChain = messageChain.then(async () => {
+      const event = JSON.parse(raw.toString());
+      if (event.type === 'message') { const result = await saveMessage(user.id, event.payload || event); if (result) broadcast(result.recipients, 'message', result.message); }
+      else if (event.type === 'typing') {
+        const payload = event.payload || event; const chatId = Number(payload.chatId);
+        if (!Number.isSafeInteger(chatId) || chatId < 1 || typeof payload.isTyping !== 'boolean' || !await conversation(chatId) || !await member(chatId, user.id)) return;
+        const recipients = (await db.query('SELECT user_id FROM conversation_members WHERE conversation_id = $1 AND user_id != $2', [chatId, user.id])).rows.map(row => row.user_id);
+        broadcast(recipients, 'typing', { chatId, senderId: user.id, isTyping: payload.isTyping });
+      }
+      else if (event.type === 'listening_activity') {
+        const payload = event.payload || event; const sessionId = String(payload.sessionId || ''); const sequence = Number(payload.sequence);
+        const priorSequence = socketSessions.get(sessionId);
+        if (priorSequence !== undefined && Number.isSafeInteger(sequence)) socketSessions.set(sessionId, Math.max(priorSequence, sequence));
+        const accepted = await updateListening(user.id, payload, socketId);
+        if (accepted && payload.action === 'start') socketSessions.set(sessionId, sequence);
+        if (accepted && payload.action === 'clear') socketSessions.delete(sessionId);
+      }
+    }).catch(() => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'error', payload: { error: 'Invalid WebSocket event' } })); });
+    return messageChain;
+  };
+  socket.on('message', raw => { if (!ready) pendingMessages.push(raw); else processSocketMessage(raw); });
+  socket.on('close', () => {
+    if (!user) return;
+    messageChain = messageChain.then(async () => {
+      for (const [sessionId, sequence] of socketSessions) await updateListening(user.id, { action: 'clear', sessionId, sequence: sequence + 1 }, socketId);
+      socketSessions.clear();
+    }).catch(() => {});
+    sockets.get(user.id)?.delete(socket); if (!sockets.get(user.id)?.size) { sockets.delete(user.id); db.query("UPDATE users SET status = 'offline' WHERE id = $1", [user.id]).then(async () => broadcastUser('user_status_update', await getUser(user.id))).catch(() => {}); }
+  });
   (async () => {
-    const token = new URL(req.url, `http://${req.headers.host}`).searchParams.get('token'); const claims = jwt.verify(token, config.jwtSecret); user = await getUser(Number(claims.sub)); if (!user || socket.readyState !== WebSocket.OPEN) throw new Error();
+    const token = new URL(req.url, `http://${req.headers.host}`).searchParams.get('token'); const claims = jwt.verify(token, config.jwtSecret); if (claims.companyId !== config.companyId || claims.eventId !== config.eventId) throw new Error(); user = await getUser(Number(claims.sub)); if (!user || socket.readyState !== WebSocket.OPEN) throw new Error();
     if (!sockets.has(user.id)) sockets.set(user.id, new Set()); sockets.get(user.id).add(socket);
     await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); await broadcastUser('user_status_update', await getUser(user.id));
-    socket.on('message', raw => {
-      (async () => {
-        const event = JSON.parse(raw.toString());
-        if (event.type === 'message') { const result = await saveMessage(user.id, event.payload || event); if (result) broadcast(result.recipients, 'message', result.message); }
-        else if (event.type === 'typing') {
-          const payload = event.payload || event; const chatId = Number(payload.chatId);
-          if (!Number.isSafeInteger(chatId) || chatId < 1 || typeof payload.isTyping !== 'boolean' || !await conversation(chatId) || !await member(chatId, user.id)) return;
-          const recipients = (await db.query('SELECT user_id FROM conversation_members WHERE conversation_id = $1 AND user_id != $2', [chatId, user.id])).rows.map(row => row.user_id);
-          broadcast(recipients, 'typing', { chatId, senderId: user.id, isTyping: payload.isTyping });
-        }
-      })().catch(() => socket.send(JSON.stringify({ type: 'error', payload: { error: 'Invalid WebSocket event' } })));
-    });
+    await pushListeningSnapshot(user.id, socket);
+    ready = true;
+    socket.send(JSON.stringify({ type: 'socket_ready', payload: {} }));
+    for (const raw of pendingMessages.splice(0)) processSocketMessage(raw);
   })().catch(() => socket.close(1008, 'Invalid token'));
 });
 if (require.main === module) initializeDatabase().then(() => server.listen(config.port, () => console.log(`Messenger API listening on http://localhost:${config.port}`))).catch(error => { console.error('Database initialization failed:', error.message); db.end().finally(() => { process.exitCode = 1; }); });

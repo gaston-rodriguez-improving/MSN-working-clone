@@ -287,7 +287,7 @@ const HomePage = () => {
           <div className="flex justify-between px-4 pt-4">
             <UserInformations />
             {/* Hotmail icon */}
-            <div className="w-9 mb-2 flex items-end">
+            <div className="mb-2 flex items-end gap-3">
               <a href="https://outlook.cloud.microsoft/mail/" target="_blank" rel="noopener noreferrer" aria-label="Open Outlook Mail">
                 <img src={hotmail} alt="Outlook Mail" />
               </a>

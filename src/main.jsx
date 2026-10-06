@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -12,6 +12,9 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { DiscordAuthHandler } from './utils/discordAuth';
+import { winampEnabled } from './features/musicConfig';
+
+const WinampPage = lazy(() => import('./pages/WinampPage'));
 
 const Main = () => {
   return (
@@ -26,6 +29,7 @@ const Main = () => {
                   <Route path="/" element={<PrivateRoute element={HomePage} />} />
                   <Route path="/chat/:id" element={<PrivateRoute element={ChatPage} />} />
                   <Route path="/admin" element={<PrivateRoute element={AdminPage} />} />
+                  {winampEnabled && <Route path="/winamp" element={<Suspense fallback={<p role="status">Loading Winamp…</p>}><PrivateRoute element={WinampPage} /></Suspense>} />}
                   <Route path="/discordAuth" element={<DiscordAuthHandler />} />
                 </Routes>
               </Router>

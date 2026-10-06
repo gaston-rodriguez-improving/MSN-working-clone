@@ -30,3 +30,9 @@ export const resetUnread = (chatId) => api.post('/unread-messages/reset', { chat
 export const updateBio = (bio) => api.patch('/users/bio', { bio });
 export const updateUsername = (username) => api.patch('/users/username', { username });
 export const updateAvatar = (avatar) => api.patch('/users/avatar', { avatar });
+export const getMusicTracks = () => api.get('/music/tracks');
+export const addMusicTrack = (track) => api.post('/music/tracks', track);
+export const removeMusicTrack = (trackId) => api.delete(`/music/tracks/${trackId}`);
+export const getListeningActivities = () => api.get('/music/listening');
+export const getListeningPreference = () => api.get('/music/listening-preference');
+export const saveListeningPreference = (share) => api.put('/music/listening-preference', { share });

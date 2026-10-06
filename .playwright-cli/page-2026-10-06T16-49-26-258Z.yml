@@ -1,0 +1,54 @@
+- generic [ref=e44]:
+  - generic [ref=e45]:
+    - generic [ref=e46]:
+      - generic [ref=e48] [cursor=pointer]:
+        - img "Avatar" [ref=e49]
+        - img "Status Frame" [ref=e50]
+      - generic [ref=e51]:
+        - generic [ref=e54] [cursor=pointer]:
+          - generic [ref=e55]:
+            - paragraph [ref=e56]: Winamp QA
+            - paragraph [ref=e57]: (online)
+          - img "Toggle Dropdown" [ref=e58]
+        - generic [ref=e59]:
+          - paragraph [ref=e60] [cursor=pointer]: Share a quick message...
+          - img "arrow icon" [ref=e62]
+        - generic [ref=e63]:
+          - checkbox "Share what I’m listening to with friends"
+          - text: Share what I’m listening to with friends
+    - link "Open Outlook Mail" [ref=e65] [cursor=pointer]:
+      - /url: https://outlook.cloud.microsoft/mail/
+      - img "Outlook Mail" [ref=e66]
+  - generic [ref=e67]:
+    - generic [ref=e68]:
+      - searchbox "Search your contacts" [ref=e69]
+      - button "Add a friend" [ref=e71] [cursor=pointer]
+      - button "Switch to Categories view" [ref=e74] [cursor=pointer]
+    - generic [ref=e75]:
+      - generic [ref=e77] [cursor=pointer]:
+        - heading [level=2] [ref=e78]:
+          - img "close tab" [ref=e79]
+        - img "favorites icon" [ref=e80]
+        - paragraph [ref=e81]: Favorites
+        - paragraph [ref=e82]: (0)
+      - generic [ref=e84] [cursor=pointer]:
+        - heading [level=2] [ref=e85]:
+          - img "close tab" [ref=e86]
+        - paragraph [ref=e87]: Available
+        - paragraph [ref=e88]: (0)
+      - generic [ref=e90] [cursor=pointer]:
+        - heading [level=2] [ref=e91]:
+          - img "close tab" [ref=e92]
+        - paragraph [ref=e93]: Offline
+        - paragraph [ref=e94]: (0)
+  - generic [ref=e95]:
+    - generic [ref=e97]:
+      - paragraph [ref=e98]: What's new
+      - generic [ref=e99] [cursor=pointer]
+      - generic [ref=e100] [cursor=pointer]
+      - generic [ref=e101] [cursor=pointer]
+    - paragraph [ref=e102]:
+      - text: If you want to know the secrets of this project, please
+      - link "click here" [ref=e103] [cursor=pointer]:
+        - /url: https://www.youtube.com/watch?v=5SZYz7lZRRI&list=RD5SZYz7lZRRI&start_radio=1
+  - contentinfo [ref=e104]
