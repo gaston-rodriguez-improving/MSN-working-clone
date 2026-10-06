@@ -1,6 +1,7 @@
+import { stripHtml } from '../helpers/stripHtml';
 const ListeningStatus = ({ activity, bio = '', className = '' }) => {
   if (activity?.trackId != null) {
-    const label = [activity.artist, activity.title].filter(Boolean).join(' - ') || 'a song';
+    const label = [activity.artist, activity.title].map(stripHtml).filter(Boolean).join(' - ') || 'a song';
     const href = `/winamp?track=${encodeURIComponent(activity.trackId)}`;
     return (
       <a

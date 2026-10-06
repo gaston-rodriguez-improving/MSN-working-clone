@@ -212,7 +212,7 @@ export default function WebampPlayer({ bridge, tracks, active, onPlaybackState, 
         trackId: track?.id ?? null,
         videoId: event.videoId ?? null,
         title: track?.title || null,
-        artist: track?.artist || track?.contributor?.username || null,
+        artist: track?.artist || null,
       });
     }
     if (event.type === 'volume') {

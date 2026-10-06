@@ -15,7 +15,7 @@
     "server": "npm --prefix server start",
     "server:dev": "npm --prefix server run dev",
     "format": "prettier --write .",
-    "test:music": "node --test server/music.test.js src/features/winamp/YouTubeMediaAdapter.test.js src/features/winamp/sharedPlaylistSync.test.js src/features/listening/state.test.js"
+    "test:music": "node --test server/music.test.js src/features/winamp/YouTubeMediaAdapter.test.js src/features/winamp/sharedPlaylistSync.test.js src/features/winamp/tracks.test.js src/features/listening/state.test.js"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.22.0",
