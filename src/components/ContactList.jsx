@@ -102,7 +102,7 @@ const Contacts = ({ contact, onOpenChat, onContextMenu }) => {
       <div className="mt-1 w-2">
         <img src={whichStatus(contact.status)} alt="contact-status" />
       </div>
-      <span className={`flex gap-1 ${unreadCount > 0 ? 'unread-contact-name' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username)) }}></span>
+      <span className={`flex gap-1 ${hasUnread ? 'unread-contact-name' : ''}`} dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(contact.name || contact.username)) }}></span>
       {(activity || statusMessage) && <span>-</span>}
       <span className="min-w-0 truncate text-gray-400">
         {activity ? <ListeningStatus activity={activity} bio={statusMessage} /> : <span dangerouslySetInnerHTML={{ __html: replaceEmoticons(formatName(statusMessage, 80)) }} />}
