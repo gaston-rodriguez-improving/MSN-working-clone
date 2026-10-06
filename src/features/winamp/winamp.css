@@ -9,6 +9,9 @@
 .winamp-main-host { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .winamp-main-host #webamp { pointer-events: auto; }
 .winamp-desktop.active-webamp .winamp-main-host { z-index: 4; }
+/* Webamp sets this portal layer inline; keep menus above desktop windows. */
+#webamp-context-menu { z-index: 10000 !important; }
+#webamp-context-menu .context-menu ul { z-index: 10000; }
 .winamp-main-host #balance, .winamp-main-host #equalizer-button, .winamp-main-host #equalizer-window, .winamp-main-host #visualizer { display: none !important; }
 .winamp-main-host #kbps, .winamp-main-host #khz, .winamp-main-host .mono-stereo { visibility: hidden; }
 .winamp-media-window { position: absolute; z-index: 3; left: min(330px, 34vw); top: 24px; width: min(760px, calc(100vw - 365px)); min-width: 340px; color: #d2d8d8; background: #171a1e; border: 1px solid #8e9b9b; box-shadow: 5px 7px 18px #0009, inset 0 0 0 1px #32393a; }
@@ -65,8 +68,8 @@
 }
 
 .winamp-media-window[hidden] { display: none; }
-.winamp-desktop-shortcut { position: absolute; left: 24px; bottom: 20px; z-index: 1; width: 76px; padding: 5px; border: 1px solid transparent; background: transparent; color: white; font: 12px Tahoma, sans-serif; cursor: pointer; text-shadow: 1px 1px #000; }
-.winamp-desktop-shortcut svg { display: block; width: 44px; height: 44px; margin: 0 auto 4px; }
+.winamp-desktop-shortcut { position: absolute; left: 24px; bottom: 18px; z-index: 1; width: 76px; padding: 5px; border: 1px solid transparent; background: transparent; color: white; font: 12px Tahoma, sans-serif; cursor: pointer; text-shadow: 1px 1px #000; }
+.winamp-desktop-shortcut img { display: block; width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; margin: 0 auto 4px; }
 .winamp-desktop-shortcut:focus-visible, .winamp-desktop-shortcut:hover { background: #224c7870; border: 1px dotted #a4bdde; outline: none; }
 
 /* MilkDrop chrome uses the supplied classic skin artwork as scalable slices. */
@@ -88,3 +91,13 @@
 @media (max-width: 760px) {
   .winamp-media-window, .winamp-media-window.is-effects { width: calc(100% - 28px); }
 }
+.winamp-folder-icons { position: absolute; z-index: 1; left: 112px; right: 20px; bottom: 18px; display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; max-height: 160px; overflow: auto; }
+.winamp-folder-icon { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 96px; padding: 5px; color: #fff; background: transparent; border: 1px solid transparent; font: 11px Tahoma, sans-serif; cursor: pointer; text-shadow: 1px 1px #000; }
+.winamp-folder-icon img { display: block; width: 40px; height: 40px; object-fit: contain; margin: 0 auto 4px; image-rendering: pixelated; }
+.winamp-folder-icon span { display: block; width: 100%; min-height: 28px; line-height: 14px; overflow-wrap: anywhere; }
+.winamp-folder-icon.selected, .winamp-folder-icon:focus-visible { background: #224c7870; border: 1px dotted #a4bdde; outline: none; }
+.winamp-desktop-menu { position: fixed; z-index: 20; padding: 3px; min-width: 165px; background: #c0c0c0; border: 2px outset #eee; box-shadow: 2px 2px #0008; }
+.winamp-desktop-menu button { width: 100%; padding: 5px 10px; border: 0; background: transparent; color: #111; text-align: left; font: 12px Tahoma, sans-serif; cursor: pointer; }
+.winamp-desktop-menu button:hover, .winamp-desktop-menu button:focus-visible { color: #fff; background: #000080; outline: none; }
+
+.winamp-desktop-shortcut span { display: block; min-height: 28px; line-height: 14px; }

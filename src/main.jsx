@@ -12,6 +12,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { DiscordAuthHandler } from './utils/discordAuth';
+import UpdateBanner from './components/UpdateBanner';
 import { winampEnabled } from './features/musicConfig';
 
 const WinampPage = lazy(() => import('./pages/WinampPage'));
@@ -33,6 +34,7 @@ const Main = () => {
                   <Route path="/discordAuth" element={<DiscordAuthHandler />} />
                 </Routes>
               </Router>
+              <UpdateBanner />
             </EmoticonProvider>
           </ChatProvider>
         </AuthProvider>

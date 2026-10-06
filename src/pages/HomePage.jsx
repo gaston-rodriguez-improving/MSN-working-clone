@@ -64,6 +64,8 @@ const HomePage = () => {
   const contactMenuRef = React.useRef(null);
   const friendMenuButtonRef = React.useRef(null);
   const [friendMenuPosition, setFriendMenuPosition] = React.useState(null);
+  const [acceptingInvitations, setAcceptingInvitations] = React.useState(false);
+  const [friendInvitationError, setFriendInvitationError] = React.useState('');
   const incomingRequests = friendRequests.filter((request) => request.direction !== 'outgoing');
   const contactPreferences = storedContactPreferences.userId === user?.id ? storedContactPreferences.value : emptyContactPreferences;
   const focusChat = (contactId) => {
@@ -98,6 +100,15 @@ const HomePage = () => {
       event.preventDefault();
       action();
     }
+  };
+  const acceptAllFriendInvitations = async () => {
+    if (!incomingRequests.length || acceptingInvitations) return;
+    setAcceptingInvitations(true);
+    setFriendInvitationError('');
+    const results = await Promise.allSettled(incomingRequests.map((request) => respondToFriendInvitation(request.id, 'accepted')));
+    if (results.some((result) => result.status === 'rejected')) setFriendInvitationError('Some invitations could not be accepted. Please try again.');
+    else setShowFriendMenu(false);
+    setAcceptingInvitations(false);
   };
   const saveContactPreferences = (value) => {
     if (!user?.id) return;
@@ -327,10 +338,14 @@ const HomePage = () => {
                     <div role="menuitem" tabIndex={0} className="cursor-pointer rounded px-2 py-1 text-[12px] text-[#17364a] hover:bg-[#d9effb] focus:bg-[#d9effb]" onClick={() => { setShowFriendMenu(false); setShowAddFriend(true); }} onKeyDown={(event) => handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setShowAddFriend(true); })}>
                       Add a friend...
                     </div>
-                    <div role="menuitem" tabIndex={0} aria-disabled={!incomingRequests.length} className={`flex items-center justify-between rounded px-2 py-1 text-[12px] text-[#17364a] ${incomingRequests.length ? 'cursor-pointer hover:bg-[#d9effb] focus:bg-[#d9effb]' : 'cursor-default opacity-50'}`} onClick={() => { if (!incomingRequests.length) return; setShowFriendMenu(false); setFriendInvitationToReview(incomingRequests[0]); }} onKeyDown={(event) => { if (incomingRequests.length) handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setFriendInvitationToReview(incomingRequests[0]); }); }}>
+                    <div role="menuitem" tabIndex={0} aria-disabled={!incomingRequests.length} className={`flex items-center justify-between rounded px-2 py-1 text-[12px] text-[#17364a] ${incomingRequests.length ? 'cursor-pointer hover:bg-[#d9effb] focus:bg-[#d9effb]' : 'cursor-default opacity-50'}`} onClick={() => { if (!incomingRequests.length) return; setShowFriendMenu(false); setFriendInvitationError(''); setFriendInvitationToReview(incomingRequests[0]); }} onKeyDown={(event) => { if (incomingRequests.length) handleFriendMenuKeyDown(event, () => { setShowFriendMenu(false); setFriendInvitationError(''); setFriendInvitationToReview(incomingRequests[0]); }); }}>
                       <span>Review friend invitations</span>
                       {incomingRequests.length > 0 && <span className="ml-2 rounded bg-[#c43131] px-1.5 text-white">{incomingRequests.length}</span>}
                     </div>
+                    <div role="menuitem" tabIndex={0} aria-disabled={!incomingRequests.length || acceptingInvitations} className={`rounded px-2 py-1 text-[12px] text-[#17364a] ${incomingRequests.length && !acceptingInvitations ? 'cursor-pointer hover:bg-[#d9effb] focus:bg-[#d9effb]' : 'cursor-default opacity-50'}`} onClick={acceptAllFriendInvitations} onKeyDown={(event) => { if (incomingRequests.length && !acceptingInvitations) handleFriendMenuKeyDown(event, acceptAllFriendInvitations); }}>
+                      {acceptingInvitations ? 'Accepting invitations...' : 'Accept all friend invitations'}
+                    </div>
+                    {friendInvitationError && <p role="alert" className="px-2 py-1 text-[11px] text-red-700">{friendInvitationError}</p>}
                   </div>
                 )}
               </div>
@@ -387,7 +402,7 @@ const HomePage = () => {
         </div>
       </div>
       </Background>
-      {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} onSend={sendFriendInvitation} />}
+      {showAddFriend && <AddFriendModal contacts={contacts} onClose={() => setShowAddFriend(false)} onSend={sendFriendInvitation} />}
       {friendInvitationToReview && <FriendInvitationModal request={friendInvitationToReview} onClose={() => setFriendInvitationToReview(null)} onRespond={respondToFriendInvitation} />}
       {categoryModal && <CategoryModal initialName={categoryModal.initialName} onClose={() => setCategoryModal(null)} onSave={(name) => saveCategory(name, categoryModal)} />}
       {contactMenu && (

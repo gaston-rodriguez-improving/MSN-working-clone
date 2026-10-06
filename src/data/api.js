@@ -33,7 +33,10 @@ export const resetUnread = (chatId) => api.post('/unread-messages/reset', { chat
 export const updateBio = (bio) => api.patch('/users/bio', { bio });
 export const updateUsername = (username) => api.patch('/users/username', { username });
 export const updateAvatar = (avatar) => api.patch('/users/avatar', { avatar });
-export const getMusicTracks = () => api.get('/music/tracks');
+export const getMusicTracks = (folderId) => api.get('/music/tracks', { params: folderId ? { folderId } : {} });
+export const getMusicTrack = (id) => api.get(`/music/tracks/${encodeURIComponent(id)}`);
+export const getMusicFolders = () => api.get('/music/folders');
+export const createMusicFolder = (name) => api.post('/music/folders', { name });
 export const addMusicTrack = (track) => api.post('/music/tracks', track);
 export const removeMusicTrack = (trackId) => api.delete(`/music/tracks/${trackId}`);
 export const getListeningActivities = () => api.get('/music/listening');

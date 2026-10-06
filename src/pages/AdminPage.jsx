@@ -2,7 +2,7 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { addAdmin, getAdminMetrics, getAdmins, getMusicTracks, removeAdmin, removeMusicTrack } from '../data/api';
+import { addAdmin, api, getAdminMetrics, getAdmins, getMusicTracks, removeAdmin, removeMusicTrack } from '../data/api';
 import { winks_icons } from '../imports/winks';
 
 const numberFormat = new Intl.NumberFormat('es-AR');
@@ -17,6 +17,7 @@ const serverErrors = {
   'You cannot remove yourself': 'No podés quitarte a vos mismo.',
   'Administrator not found': 'Esa persona ya no es administradora.',
   'Track not found': 'Esa canción ya no está en la playlist.',
+  'Folder not found': 'Esa carpeta ya no existe.',
 };
 const errorMessage = (error, fallback) => serverErrors[error.response?.data?.error] || fallback;
 
@@ -114,6 +115,8 @@ const AdminPage = () => {
   const [metrics, setMetrics] = useState(null);
   const [admins, setAdmins] = useState(null);
   const [tracks, setTracks] = useState(null);
+  const [folders, setFolders] = useState(null);
+  const [foldersError, setFoldersError] = useState('');
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -125,7 +128,7 @@ const AdminPage = () => {
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError('');
-    const [metricsResult, adminsResult, tracksResult] = await Promise.allSettled([getAdminMetrics(), getAdmins(), getMusicTracks()]);
+    const [metricsResult, adminsResult, tracksResult, foldersResult] = await Promise.allSettled([getAdminMetrics(), getAdmins(), getMusicTracks(), api.get('/admin/music/folders')]);
     if ([metricsResult, adminsResult].some((result) => result.status === 'rejected' && result.reason?.response?.status === 403)) setDenied(true);
     else {
       setDenied(false);
@@ -133,6 +136,10 @@ const AdminPage = () => {
       else setLoadError('No se pudieron cargar las métricas. Si acabás de actualizar, volvé a desplegar el servidor y recargá la página.');
       if (adminsResult.status === 'fulfilled') setAdmins(adminsResult.value.data.admins);
       if (tracksResult.status === 'fulfilled') setTracks(tracksResult.value.data.tracks);
+      if (foldersResult.status === 'fulfilled') {
+        setFolders((foldersResult.value.data.folders || []).filter((folder) => folder.isPersonal === false));
+        setFoldersError('');
+      } else setFoldersError('No se pudieron cargar las carpetas compartidas. Intentá de nuevo.');
     }
     setLoading(false);
   }, []);
@@ -160,6 +167,16 @@ const AdminPage = () => {
   };
   const dropAdmin = (email) => run(async () => { const { data } = await removeAdmin(email); setAdmins(data.admins); }, `${email} ya no es administrador.`);
   const dropTrack = (track) => run(async () => { await removeMusicTrack(track.id); setTracks((current) => current.filter((item) => item.id !== track.id)); }, `"${track.title}" se quitó de la playlist.`);
+  const dropFolder = (folder) => run(async () => { await api.delete(`/admin/music/folders/${encodeURIComponent(folder.id)}`); setFolders((current) => current.filter((item) => item.id !== folder.id)); setTracks((current) => current?.filter((track) => track.folderId !== folder.id)); }, `"${folder.name}" se eliminó para todos.`);
+  const retryFolders = async () => {
+    setFoldersError('');
+    try {
+      const { data } = await api.get('/admin/music/folders');
+      setFolders((data.folders || []).filter((folder) => folder.isPersonal === false));
+    } catch {
+      setFoldersError('No se pudieron cargar las carpetas compartidas. Intentá de nuevo.');
+    }
+  };
 
   const signOut = () => { logout(); navigate('/login'); };
   const fun = metrics?.fun;
@@ -244,6 +261,27 @@ const AdminPage = () => {
                   </div>
                 </div>
               </div>
+
+              <Card title="Carpetas de música compartidas" subtitle={folders ? `${formatNumber(folders.length)} ${folders.length === 1 ? 'carpeta activa' : 'carpetas activas'}. Eliminarlas las quita para todos.` : 'Carpetas compartidas de la música'}>
+                {foldersError ? (
+                  <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#efc8c8] bg-[#fff6f5] px-4 py-3 text-[13px] text-[#8c3434]">
+                    <span>{foldersError}</span>
+                    <button type="button" onClick={retryFolders} className="font-semibold underline underline-offset-2">Reintentar</button>
+                  </div>
+                ) : !folders ? <Skeleton className="h-24 w-full" /> : folders.length === 0 ? (
+                  <p className="rounded-xl bg-[#f4f8fb] px-4 py-8 text-center text-[14px] text-[#7b91a0]">No hay carpetas compartidas.</p>
+                ) : (
+                  <ul className="divide-y divide-[#edf2f6]">
+                    {folders.map((folder) => (
+                      <li key={folder.id} className="flex items-center gap-3 py-3">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#edf6fc] text-[#1769aa]"><Icon name="music" className="h-5 w-5" /></span>
+                        <p className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#1d3a52]">{folder.name}</p>
+                        <ConfirmButton label="Eliminar" confirmLabel="Sí, eliminar" busy={busy} onConfirm={() => dropFolder(folder)} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
 
               <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 <Card title="Playlist compartida" subtitle={tracks ? `${formatNumber(tracks.length)} ${tracks.length === 1 ? 'canción activa' : 'canciones activas'}. Quitarla la elimina para todos.` : 'Cargando canciones…'}>

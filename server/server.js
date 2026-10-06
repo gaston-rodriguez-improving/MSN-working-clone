@@ -139,13 +139,13 @@ app.post('/auth/sign-up', asyncRoute(async (req, res) => {
   if (limitError('username', username)) return res.status(400).json({ error: limitError('username', username) });
   if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
   if (!emailAllowed(email)) return res.status(403).json({ error: 'Email domain is not allowed' });
-  try { const hash = await bcrypt.hash(String(password), 12); const result = await db.query('INSERT INTO users (email, username, password_hash, company_id, event_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [String(email).trim().toLowerCase(), username, hash, config.companyId, config.eventId, req.body.status || 'offline']); const user = await getUser(result.rows[0].id); res.status(201).json({ access_token: tokenFor(user), user: publicUser(user) }); }
+  try { const hash = await bcrypt.hash(String(password), 12); const result = await db.query('INSERT INTO users (email, username, password_hash, company_id, event_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [String(email).trim().toLowerCase(), username, hash, config.companyId, config.eventId, req.body.status || 'offline']); const user = await getUser(result.rows[0].id); await ensureMusicFolders(user.id); res.status(201).json({ access_token: tokenFor(user), user: publicUser(user) }); }
   catch (error) { res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'Email or username already exists' : 'Could not create account' }); }
 }));
-app.post('/auth/sign-in', asyncRoute(async (req, res) => { const email = String(req.body?.email || '').trim().toLowerCase(); const user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user || !(await bcrypt.compare(String(req.body?.password || ''), user.password_hash))) return res.status(401).json({ error: 'Invalid email or password' }); await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); res.status(200).json({ access_token: tokenFor(updated), user: publicUser(updated) }); }));
+app.post('/auth/sign-in', asyncRoute(async (req, res) => { const email = String(req.body?.email || '').trim().toLowerCase(); const user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user || !(await bcrypt.compare(String(req.body?.password || ''), user.password_hash))) return res.status(401).json({ error: 'Invalid email or password' }); await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); await ensureMusicFolders(updated.id); res.status(200).json({ access_token: tokenFor(updated), user: publicUser(updated) }); }));
 async function verifyAzureAdIdToken(idToken) { if (!config.azureAdTenantId || !config.azureAdClientId) throw new Error('Azure AD SSO is not configured'); const { createRemoteJWKSet, jwtVerify } = await import('jose'); const authority = `https://login.microsoftonline.com/${config.azureAdTenantId}`; const issuer = `${authority}/v2.0`; const jwks = createRemoteJWKSet(new URL(`${authority}/discovery/v2.0/keys`)); const { payload } = await jwtVerify(idToken, jwks, { issuer, audience: config.azureAdClientId }); return payload; }
 async function uniqueUsername(email, name) { let display = String(name || '').normalize('NFC').replace(/[^\p{L}\p{N} ._'-]/gu, ' ').replace(/\s+/g, ' ').trim(); const comma = display.match(/^([^,]+),\s*(.+)$/); if (comma) display = `${comma[2]} ${comma[1]}`.replace(/\s+/g, ' ').trim(); const base = (display || String(email.split('@')[0]).replace(/[^a-zA-Z0-9._-]/g, '')).slice(0, 40).trim() || 'user'; let username = base; let suffix = 1; while ((await db.query('SELECT 1 FROM users WHERE username = $1 AND company_id = $2 AND event_id = $3', [username, config.companyId, config.eventId])).rows[0]) username = `${base}${suffix++}`; return username; }
-app.post('/auth/microsoft', asyncRoute(async (req, res) => { try { const claims = await verifyAzureAdIdToken(String(req.body?.id_token || '')); const email = String(claims.preferred_username || claims.email || '').trim().toLowerCase(); if (!email || !emailAllowed(email)) return res.status(403).json({ error: 'Your Microsoft account is not allowed' }); let user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user) { const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12); const username = await uniqueUsername(email, claims.name); const result = await db.query('INSERT INTO users (email, username, password_hash, company_id, event_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [email, username, passwordHash, config.companyId, config.eventId, 'online']); user = await getUser(result.rows[0].id); } else await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); res.status(200).json({ access_token: tokenFor(updated, 'microsoft'), user: publicUser(updated) }); } catch (error) { console.error('Microsoft Entra authentication failed:', error.message); res.status(401).json({ error: 'Microsoft sign-in failed. Check the Entra app configuration and try again.' }); } }));
+app.post('/auth/microsoft', asyncRoute(async (req, res) => { try { const claims = await verifyAzureAdIdToken(String(req.body?.id_token || '')); const email = String(claims.preferred_username || claims.email || '').trim().toLowerCase(); if (!email || !emailAllowed(email)) return res.status(403).json({ error: 'Your Microsoft account is not allowed' }); let user = (await db.query('SELECT * FROM users WHERE email = $1 AND company_id = $2 AND event_id = $3', [email, config.companyId, config.eventId])).rows[0]; if (!user) { const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12); const username = await uniqueUsername(email, claims.name); const result = await db.query('INSERT INTO users (email, username, password_hash, company_id, event_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [email, username, passwordHash, config.companyId, config.eventId, 'online']); user = await getUser(result.rows[0].id); } else await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); const updated = await getUser(user.id); await ensureMusicFolders(updated.id); res.status(200).json({ access_token: tokenFor(updated, 'microsoft'), user: publicUser(updated) }); } catch (error) { console.error('Microsoft Entra authentication failed:', error.message); res.status(401).json({ error: 'Microsoft sign-in failed. Check the Entra app configuration and try again.' }); } }));
 app.get('/auth/check-token', auth, (req, res) => res.json({ user: publicUser(req.user) }));
 app.get('/contact-preferences', auth, asyncRoute(async (req, res) => {
   const row = (await db.query('SELECT preferences FROM user_contact_preferences WHERE user_id = $1', [req.user.id])).rows[0];
@@ -162,44 +162,121 @@ app.put('/contact-preferences', auth, asyncRoute(async (req, res) => {
 app.get('/users', auth, asyncRoute(async (req, res) => { const search = `%${String(req.query.search || '').trim()}%`; const rows = (await db.query('SELECT * FROM users WHERE company_id = $1 AND event_id = $2 AND id != $3 AND (username ILIKE $4 OR email ILIKE $4) ORDER BY lower(username)', [config.companyId, config.eventId, req.user.id, search])).rows; res.json({ users: rows.map(publicUser) }); }));
 
 let catalogRevision = 0;
-const musicTrackView = (row, userId, isAdmin = false) => ({ id: row.id, videoId: row.video_id, title: row.title, artist: row.artist, contributor: { id: row.contributor_id, username: row.contributor_username }, createdAt: row.created_at, canRemove: row.contributor_id === userId || isAdmin });
+const musicTrackView = (row, userId, isAdmin = false) => ({ id: row.id, videoId: row.video_id, title: row.title, artist: row.artist, folderId: row.folder_id, contributor: { id: row.contributor_id, username: row.contributor_username }, createdAt: row.created_at, canRemove: row.contributor_id === userId || isAdmin });
 const musicTrackSelect = `SELECT t.*, u.username AS contributor_username, u.email AS contributor_email FROM event_music_tracks t JOIN users u ON u.id = t.contributor_id`;
-async function broadcastCatalogChange() {
-  const ids = (await db.query('SELECT id FROM users WHERE company_id = $1 AND event_id = $2', [config.companyId, config.eventId])).rows.map(x => x.id);
+async function ensureMusicFolders(userId) {
+  const scope = [config.companyId, config.eventId];
+  await db.query(`INSERT INTO event_music_folders(company_id,event_id,name) SELECT $1,$2,'Improving'
+    WHERE NOT EXISTS(SELECT 1 FROM event_music_folders WHERE company_id=$1 AND event_id=$2) ON CONFLICT DO NOTHING`, scope);
+  await db.query(`INSERT INTO event_music_folders(company_id,event_id,name,owner_id) VALUES($1,$2,'Personal',$3)
+    ON CONFLICT DO NOTHING`, [...scope, userId]);
+}
+const musicFolderView = row => ({ id: row.id, name: row.name, isPersonal: row.owner_id != null });
+async function accessibleFolder(folderId, userId, client = db) {
+  return (await client.query(`SELECT * FROM event_music_folders WHERE id=$1 AND company_id=$2 AND event_id=$3
+    AND deleted_at IS NULL AND (owner_id IS NULL OR owner_id=$4)`, [folderId, config.companyId, config.eventId, userId])).rows[0];
+}
+async function broadcastCatalogChange(folder) {
+  const query = folder?.owner_id == null
+    ? ['SELECT id FROM users WHERE company_id=$1 AND event_id=$2', [config.companyId, config.eventId]]
+    : ['SELECT id FROM users WHERE id=$1 AND company_id=$2 AND event_id=$3', [folder.owner_id, config.companyId, config.eventId]];
+  const ids = (await db.query(query[0], query[1])).rows.map(x => x.id);
   broadcast(ids, 'music_catalog_changed', { scope: { companyId: config.companyId, eventId: config.eventId }, revision: ++catalogRevision });
 }
+app.get('/music/folders', auth, asyncRoute(async (req, res) => {
+  await ensureMusicFolders(req.user.id);
+  const rows = (await db.query(`SELECT * FROM event_music_folders WHERE company_id=$1 AND event_id=$2
+    AND deleted_at IS NULL AND (owner_id IS NULL OR owner_id=$3) ORDER BY (owner_id IS NOT NULL), lower(name), id`, [config.companyId, config.eventId, req.user.id])).rows;
+  res.set('Cache-Control','no-store').json({ folders: rows.map(musicFolderView) });
+}));
+app.post('/music/folders', auth, asyncRoute(async (req, res) => {
+  await ensureMusicFolders(req.user.id);
+  const name = String(req.body?.name || '').trim();
+  if (!name || name.length > 80) return res.status(400).json({ error: 'Folder name is required and must be at most 80 characters' });
+  if (/^personal(?: \(not shared\))?$/i.test(name)) return res.status(400).json({ error: 'Personal is reserved for your private folder' });
+  try {
+    const row = (await db.query(`INSERT INTO event_music_folders(company_id,event_id,name) VALUES($1,$2,$3) RETURNING *`, [config.companyId, config.eventId, name])).rows[0];
+    await broadcastCatalogChange(row); res.status(201).json({ folder: musicFolderView(row) });
+  } catch (error) { if (error.code === '23505') return res.status(409).json({ error: 'A folder with this name already exists' }); throw error; }
+}));
+app.get('/admin/music/folders', auth, adminAuth, asyncRoute(async (_req, res) => {
+  const rows = (await db.query(`SELECT * FROM event_music_folders WHERE company_id=$1 AND event_id=$2 AND deleted_at IS NULL AND owner_id IS NULL ORDER BY lower(name),id`, [config.companyId, config.eventId])).rows;
+  res.set('Cache-Control','no-store').json({ folders: rows.map(musicFolderView) });
+}));
+app.delete('/admin/music/folders/:id', auth, adminAuth, asyncRoute(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(404).json({ error: 'Folder not found' });
+  const folder = (await db.query(`SELECT * FROM event_music_folders WHERE id=$1 AND company_id=$2 AND event_id=$3 AND owner_id IS NULL AND deleted_at IS NULL`, [id, config.companyId, config.eventId])).rows[0];
+  if (!folder) return res.status(404).json({ error: 'Folder not found' });
+  const client = await db.connect();
+  let clearedUsers = [];
+  try {
+    await client.query('BEGIN');
+    clearedUsers = (await client.query(`SELECT a.user_id FROM user_music_activities a JOIN event_music_tracks t ON t.id=a.track_id WHERE t.folder_id=$1 FOR UPDATE`, [id])).rows.map(row => row.user_id);
+    for (const userId of clearedUsers) {
+      await client.query('INSERT INTO user_music_preferences(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING', [userId]);
+      const revision = Number((await client.query('SELECT revision FROM user_music_preferences WHERE user_id=$1 FOR UPDATE', [userId])).rows[0].revision) + 1;
+      await client.query('DELETE FROM user_music_activities WHERE user_id=$1', [userId]);
+      await client.query('UPDATE user_music_preferences SET revision=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1', [userId, revision]);
+    }
+    await client.query('UPDATE event_music_folders SET deleted_at=CURRENT_TIMESTAMP WHERE id=$1', [id]);
+    await client.query('UPDATE event_music_tracks SET removed_at=CURRENT_TIMESTAMP,removed_by=$2 WHERE folder_id=$1 AND removed_at IS NULL', [id, req.user.id]);
+    await client.query('COMMIT');
+  } catch(error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  for (const userId of clearedUsers) {
+    const revision = Number((await db.query('SELECT revision FROM user_music_preferences WHERE user_id=$1', [userId])).rows[0]?.revision || 0);
+    await sendListening(userId, listeningEnvelope(userId, revision, null));
+  }
+  await broadcastCatalogChange(folder); res.json({ ok: true });
+}));
 app.get('/music/tracks', auth, asyncRoute(async (req, res) => {
-  const rows = (await db.query(`${musicTrackSelect} WHERE t.company_id = $1 AND t.event_id = $2 AND t.removed_at IS NULL ORDER BY t.id`, [config.companyId, config.eventId])).rows;
+  await ensureMusicFolders(req.user.id);
+  const folderId = req.query.folderId == null ? (await db.query(`SELECT id FROM event_music_folders WHERE company_id=$1 AND event_id=$2 AND owner_id IS NULL AND deleted_at IS NULL ORDER BY (name='Improving') DESC,id LIMIT 1`, [config.companyId, config.eventId])).rows[0]?.id : Number(req.query.folderId);
+  if (folderId == null && req.query.folderId == null) return res.json({ tracks: [] });
+  if (!Number.isSafeInteger(Number(folderId))) return res.status(400).json({ error: 'Invalid folderId' });
+  if (!await accessibleFolder(folderId, req.user.id)) return res.status(404).json({ error: 'Folder not found' });
+  const rows = (await db.query(`${musicTrackSelect} WHERE t.company_id = $1 AND t.event_id = $2 AND t.folder_id=$3 AND t.removed_at IS NULL ORDER BY t.id`, [config.companyId, config.eventId, folderId])).rows;
   const isAdmin = await isAdminRequest(req);
   res.set('Cache-Control', 'no-store').json({ tracks: rows.map(row => musicTrackView(row, req.user.id, isAdmin)) });
 }));
+app.get('/music/tracks/:id', auth, asyncRoute(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(404).json({ error: 'Track not found' });
+  const row = (await db.query(`${musicTrackSelect} WHERE t.id=$1 AND t.company_id=$2 AND t.event_id=$3 AND t.removed_at IS NULL`, [id,config.companyId,config.eventId])).rows[0];
+  if (!row || !await accessibleFolder(row.folder_id,req.user.id)) return res.status(404).json({ error: 'Track not found' });
+  res.set('Cache-Control','no-store').json({ track: musicTrackView(row,req.user.id,await isAdminRequest(req)) });
+}));
 app.post('/music/tracks', auth, asyncRoute(async (req, res) => {
+  await ensureMusicFolders(req.user.id);
   const videoId = parseYouTubeVideoId(String(req.body?.url || ''));
   const title = String(req.body?.title || '').trim(); const artist = String(req.body?.artist || '').trim();
   if (!videoId) return res.status(400).json({ error: 'A supported YouTube video URL is required' });
   if (!title || title.length > 120) return res.status(400).json({ error: 'Title is required and must be at most 120 characters' });
   if (artist.length > 80) return res.status(400).json({ error: 'Artist must be at most 80 characters' });
+  const requestedFolderId = req.body?.folderId == null ? null : Number(req.body.folderId);
+  const folderId = requestedFolderId == null ? Number((await db.query(`SELECT id FROM event_music_folders WHERE company_id=$1 AND event_id=$2 AND owner_id IS NULL AND deleted_at IS NULL ORDER BY (name='Improving') DESC,id LIMIT 1`, [config.companyId, config.eventId])).rows[0]?.id) : requestedFolderId;
+  if (!Number.isSafeInteger(folderId) || !await accessibleFolder(folderId, req.user.id)) return res.status(404).json({ error: 'Folder not found' });
   try {
-    const inserted = await db.query(`INSERT INTO event_music_tracks(company_id,event_id,video_id,title,artist,contributor_id)
-      VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, [config.companyId, config.eventId, videoId, title, artist, req.user.id]);
+    const inserted = await db.query(`INSERT INTO event_music_tracks(company_id,event_id,video_id,title,artist,contributor_id,folder_id)
+      VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`, [config.companyId, config.eventId, videoId, title, artist, req.user.id, folderId]);
     const row = (await db.query(`${musicTrackSelect} WHERE t.id = $1`, [inserted.rows[0].id])).rows[0];
     const isAdmin = await isAdminRequest(req);
-    await broadcastCatalogChange(); res.status(201).json({ track: musicTrackView(row, req.user.id, isAdmin) });
+    await broadcastCatalogChange(await accessibleFolder(folderId, req.user.id)); res.status(201).json({ track: musicTrackView(row, req.user.id, isAdmin) });
   } catch (error) {
-    if (error.code === '23505') return res.status(409).json({ error: 'This video is already in the shared catalog' });
+    if (error.code === '23505') return res.status(409).json({ error: 'This video is already in this folder' });
     throw error;
   }
 }));
 app.delete('/music/tracks/:id', auth, asyncRoute(async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isSafeInteger(id) || id < 1) return res.status(404).json({ error: 'Track not found' });
-  const row = (await db.query(`SELECT t.*, u.email AS contributor_email FROM event_music_tracks t JOIN users u ON u.id=t.contributor_id
-    WHERE t.id=$1 AND t.company_id=$2 AND t.event_id=$3 AND t.removed_at IS NULL`, [id, config.companyId, config.eventId])).rows[0];
+  const row = (await db.query(`SELECT t.*, u.email AS contributor_email FROM event_music_tracks t JOIN users u ON u.id=t.contributor_id JOIN event_music_folders f ON f.id=t.folder_id
+    WHERE t.id=$1 AND t.company_id=$2 AND t.event_id=$3 AND t.removed_at IS NULL AND f.deleted_at IS NULL AND (f.owner_id IS NULL OR f.owner_id=$4)`, [id, config.companyId, config.eventId, req.user.id])).rows[0];
   if (!row) return res.status(404).json({ error: 'Track not found' });
   const isAdmin = await isAdminRequest(req);
   if (row.contributor_id !== req.user.id && !isAdmin) return res.status(403).json({ error: 'Only the contributor or an administrator can remove this track' });
   await db.query('UPDATE event_music_tracks SET removed_at=CURRENT_TIMESTAMP, removed_by=$1 WHERE id=$2 AND removed_at IS NULL', [req.user.id, id]);
-  await broadcastCatalogChange(); res.json({ ok: true });
+  await broadcastCatalogChange(await accessibleFolder(row.folder_id, req.user.id)); res.json({ ok: true });
 }));
 function listeningEnvelope(userId, revision, activity) { return { userId, revision, activity }; }
 function activityView(row) { return { userId: row.user_id, username: row.username, sessionId: row.session_id, revision: Number(row.revision), trackId: row.track_id, title: row.title, artist: row.artist, updatedAt: row.updated_at, expiresAt: row.expires_at }; }
@@ -384,8 +461,20 @@ async function updateListening(userId, body, socketId) {
     const existing = (await client.query('SELECT * FROM user_music_activities WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
     if (action === 'start') {
       const trackId = Number(body.trackId);
-      const track = (await client.query(`SELECT id,title,artist FROM event_music_tracks WHERE id=$1 AND company_id=$2 AND event_id=$3 AND removed_at IS NULL`, [trackId, config.companyId, config.eventId])).rows[0];
+      const track = (await client.query(`SELECT t.id,t.title,t.artist,f.owner_id FROM event_music_tracks t JOIN event_music_folders f ON f.id=t.folder_id WHERE t.id=$1 AND t.company_id=$2 AND t.event_id=$3 AND t.removed_at IS NULL AND f.deleted_at IS NULL`, [trackId, config.companyId, config.eventId])).rows[0];
       if (!track) { await client.query('COMMIT'); return; }
+      if (track.owner_id != null) {
+        if (track.owner_id !== userId) { await client.query('COMMIT'); return; }
+        if (existing && existing.socket_id === socketId) {
+          const revision = Number(pref.revision) + 1;
+          await client.query('DELETE FROM user_music_activities WHERE user_id=$1', [userId]);
+          await client.query('UPDATE user_music_preferences SET revision=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1', [userId, revision]);
+          envelope = listeningEnvelope(userId, revision, null);
+        }
+        await client.query('COMMIT');
+        if (envelope) await sendListening(userId, envelope);
+        return;
+      }
       const revision = Number(pref.revision) + 1;
       const row = (await client.query(`INSERT INTO user_music_activities(user_id,session_id,socket_id,client_sequence,track_id,title,artist,revision,started_at,updated_at,expires_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP+INTERVAL '60 seconds')

@@ -1,7 +1,7 @@
 /* eslint react/prop-types: off */
 import { useEffect, useRef, useState } from 'react';
 
-export default function AddTrackDialog({ open, busy, error, onSubmit, onClose }) {
+export default function AddTrackDialog({ open, busy, error, onSubmit, onClose, folderName, isPersonal }) {
   const dialogRef = useRef(null);
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -18,7 +18,7 @@ export default function AddTrackDialog({ open, busy, error, onSubmit, onClose })
     <dialog ref={dialogRef} className="winamp-add-dialog" aria-labelledby="winamp-add-title" onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
       <div className="winamp-dialog-title"><span className="winamp-dialog-rule" /><h2 id="winamp-add-title">ADD YOUTUBE TRACK</h2><span className="winamp-dialog-rule" /><button type="button" aria-label="Close add track dialog" disabled={busy} onClick={onClose}>×</button></div>
       <form onSubmit={(event) => { event.preventDefault(); onSubmit({ url, title: title.trim(), artist: artist.trim() }); }}>
-        <p>Add a song to the shared event playlist.</p>
+        <p>Add a song to {folderName || 'the playlist'}.{isPersonal ? ' Only you can see this playlist.' : ' Shared with the company.'}</p>
         <label htmlFor="winamp-track-url">YouTube URL</label>
         <input id="winamp-track-url" required type="url" maxLength={2048} placeholder="https://youtu.be/…" value={url} onChange={(event) => setUrl(event.target.value)} />
         <label htmlFor="winamp-track-title">Track title</label>

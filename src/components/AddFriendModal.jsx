@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import WLMIcon from '/assets/general/wlm-icon.png';
 import { getUsers } from '../data/api';
 
-const AddFriendModal = ({ onClose, onSend }) => {
+const AddFriendModal = ({ onClose, onSend, contacts = [] }) => {
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const availableUsers = users.filter((person) => !contacts.some((contact) => String(contact.id) === String(person.id)));
   const [message, setMessage] = useState('Hi! Let’s connect on Windows Live Messenger.');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,8 +56,8 @@ const AddFriendModal = ({ onClose, onSend }) => {
         <input autoFocus value={search} onChange={(event) => { setSearch(event.target.value); setSelectedUser(null); setError(''); }} placeholder="Search for a person" className="searchbar w-full rounded border border-[#9bb7c9] bg-white px-2 py-1 outline-none" />
         <div className="mt-2 min-h-[58px] max-h-[240px] overflow-y-auto rounded border border-[#c5d5df] bg-[#f7fbfd] p-1">
           {loading && <p className="p-2 text-gray-500">Searching...</p>}
-          {!loading && search.trim() && !users.length && <p className="p-2 text-gray-500">No people found.</p>}
-          {users.map((person) => <button type="button" key={person.id} onClick={() => setSelectedUser(person)} className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-[#d9effb] ${selectedUser?.id === person.id ? 'bg-[#c6e8fa]' : ''}`}>
+          {!loading && search.trim() && !availableUsers.length && <p className="p-2 text-gray-500">No people found.</p>}
+          {availableUsers.map((person) => <button type="button" key={person.id} onClick={() => setSelectedUser(person)} className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-[#d9effb] ${selectedUser?.id === person.id ? 'bg-[#c6e8fa]' : ''}`}>
             <img src={person.avatar === 'default' ? '/assets/usertiles/default.png' : person.avatar} alt="" className="h-8 w-8 rounded" />
             <span><strong dangerouslySetInnerHTML={{ __html: formatName(person.username) }} /><br /><span className="text-gray-500">{person.email}</span></span>
           </button>)}
@@ -66,8 +67,8 @@ const AddFriendModal = ({ onClose, onSend }) => {
         {selectedUser && <p className="mt-2 text-[#1D2F7F]">Invitation will be sent to <strong dangerouslySetInnerHTML={{ __html: formatName(selectedUser.username) }} />.</p>}
         {error && <p className="mt-2 text-red-700">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={onClose}>Cancel</button>
-          <button type="submit" disabled={loading || !selectedUser}>{loading ? 'Sending...' : 'Send invitation'}</button>
+          <button type="button" className="msn-glossy-button rounded px-3 py-1" onClick={onClose}>Cancel</button>
+          <button type="submit" disabled={loading || !selectedUser} className="msn-glossy-button rounded px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50">{loading ? 'Sending...' : 'Send invitation'}</button>
         </div>
       </form>
     </div>

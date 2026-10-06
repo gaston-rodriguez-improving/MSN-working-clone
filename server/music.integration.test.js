@@ -85,6 +85,47 @@ test('shared catalog permissions and listening lease ownership', { skip: !enable
   if (!admin) admin = (await db.query(`INSERT INTO users(email,username,password_hash,company_id,event_id,status)
     VALUES($1,$2,$3,$4,$5,'offline') RETURNING id`, ['gaston.rodriguez@improving.com', `adminfixture${suffix}`, 'integration-test-hash', scope.company_id, scope.event_id])).rows[0];
   const adminToken = authProvider => jwt.sign({ sub: admin.id, companyId: scope.company_id, eventId: scope.event_id, authProvider }, process.env.JWT_SECRET, { expiresIn: '5m' });
+  const aliceFolders = await api('/music/folders', alice.access_token);
+  assert.equal(aliceFolders.status, 200);
+  const personal = aliceFolders.body.folders.find(folder => folder.isPersonal);
+  assert.ok(personal);
+  assert.equal((await api(`/music/tracks?folderId=${personal.id}`, bob.access_token)).status, 404);
+  assert.equal((await api(`/music/tracks?folderId=${personal.id}`, adminToken('microsoft'))).status, 404);
+  const aliceCatalogStart = aliceSocket.events.length;
+  const bobCatalogStart = bobSocket.events.length;
+  const strangerCatalogStart = strangerSocket.events.length;
+  const personalTrack = await api('/music/tracks', alice.access_token, 'POST', { url: `https://youtu.be/p${suffix.slice(0, 10)}`, title: 'Private integration track', folderId: personal.id });
+  assert.equal(personalTrack.status, 201, JSON.stringify(personalTrack.body));
+  assert.equal(personalTrack.body.track.folderId, personal.id);
+  assert.equal((await api(`/music/tracks/${personalTrack.body.track.id}`, alice.access_token)).status, 200);
+  assert.equal((await api(`/music/tracks/${personalTrack.body.track.id}`, bob.access_token)).status, 404);
+  assert.equal((await api(`/music/tracks/${personalTrack.body.track.id}`, adminToken('microsoft'))).status, 404);
+  await waitFor(aliceSocket.events, (event, index) => index >= aliceCatalogStart && event.type === 'music_catalog_changed');
+  await new Promise(resolve => setTimeout(resolve, 150));
+  assert.equal(bobSocket.events.slice(bobCatalogStart).some(event => event.type === 'music_catalog_changed'), false);
+  assert.equal(strangerSocket.events.slice(strangerCatalogStart).some(event => event.type === 'music_catalog_changed'), false);
+  assert.equal((await api('/music/tracks', bob.access_token, 'POST', { url: `https://youtu.be/p${suffix.slice(0, 10)}`, title: 'Attempted private duplicate', folderId: personal.id })).status, 404);
+  assert.equal((await api(`/music/tracks/${personalTrack.body.track.id}`, bob.access_token, 'DELETE')).status, 404);
+  const privateSession = `private-${suffix}`;
+  const privateEventStarts = [aliceSocket.events.length, bobSocket.events.length, strangerSocket.events.length];
+  aliceSocket.ws.send(JSON.stringify({ type: 'listening_activity', payload: { action: 'start', sessionId: privateSession, sequence: 1, trackId: personalTrack.body.track.id } }));
+  await new Promise(resolve => setTimeout(resolve, 250));
+  for (const [events, start] of [[aliceSocket.events, privateEventStarts[0]], [bobSocket.events, privateEventStarts[1]], [strangerSocket.events, privateEventStarts[2]]]) {
+    assert.equal(events.slice(start).some(event => event.type === 'listening_activity' && (event.payload.activity?.sessionId === privateSession || event.payload.activity?.trackId === personalTrack.body.track.id)), false);
+  }
+  assert.equal((await api('/music/listening', alice.access_token)).body.activities.some(activity => activity.trackId === personalTrack.body.track.id), false);
+  assert.equal((await api('/music/listening', bob.access_token)).body.activities.some(activity => activity.trackId === personalTrack.body.track.id), false);
+  const sharedFolder = await api('/music/folders', bob.access_token, 'POST', { name: `Shared ${suffix}` });
+  assert.equal(sharedFolder.status, 201, JSON.stringify(sharedFolder.body));
+  assert.equal(aliceFolders.body.folders.some(folder => folder.id === sharedFolder.body.folder.id), false);
+  assert.ok((await api('/music/folders', alice.access_token)).body.folders.some(folder => folder.id === sharedFolder.body.folder.id));
+  const folderTrack = await api('/music/tracks', alice.access_token, 'POST', { url: `https://youtu.be/${videoId}`, title: 'Same video, other folder', folderId: sharedFolder.body.folder.id });
+  assert.equal(folderTrack.status, 201, JSON.stringify(folderTrack.body));
+  assert.equal((await api(`/music/tracks?folderId=${sharedFolder.body.folder.id}`, alice.access_token)).body.tracks.length, 1);
+  assert.equal((await api(`/admin/music/folders/${sharedFolder.body.folder.id}`, adminToken('password'), 'DELETE')).status, 403);
+  assert.equal((await api(`/admin/music/folders/${sharedFolder.body.folder.id}`, adminToken('microsoft'), 'DELETE')).status, 200);
+  assert.equal((await api(`/music/tracks?folderId=${sharedFolder.body.folder.id}`, alice.access_token)).status, 404);
+  assert.equal((await api(`/music/tracks/${folderTrack.body.track.id}`, alice.access_token, 'DELETE')).status, 404);
   assert.equal((await api(`/music/tracks/${otherTrack.body.track.id}`, adminToken('password'), 'DELETE')).status, 403);
   assert.equal((await api(`/music/tracks/${otherTrack.body.track.id}`, adminToken('microsoft'), 'DELETE')).status, 200);
   const invalidation = await waitFor(aliceSocket.events, event => event.type === 'music_catalog_changed');

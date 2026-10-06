@@ -2,10 +2,11 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { ChatContext } from '../contexts/ChatContext';
-import { addMusicTrack, getMusicTracks, removeMusicTrack } from '../data/api';
+import { addMusicTrack, getMusicTracks, removeMusicTrack, getMusicFolders, createMusicFolder, getMusicTrack } from '../data/api';
 import { listeningEnabled } from '../features/musicConfig';
 import WebampPlayer from '../features/winamp/WebampPlayer';
 import AddTrackDialog from '../features/winamp/AddTrackDialog';
+import NewFolderDialog from '../features/winamp/NewFolderDialog';
 import YouTubePlayer from '../features/winamp/YouTubePlayer';
 import { createYouTubeBridge } from '../features/winamp/youtubeBridge';
 import '../features/winamp/winamp.css';
@@ -54,6 +55,14 @@ export default function WinampPage() {
   const { user, logout } = useContext(AuthContext);
   const { subscribeToServerEvents, sendSocketEvent, listeningSharing, setListeningSharing } = useContext(ChatContext);
   const [tracks, setTracks] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [folderId, setFolderId] = useState(null);
+  const folderIdRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [folderBusy, setFolderBusy] = useState(false);
+  const [folderError, setFolderError] = useState('');
+  const selectedFolder = folders.find((folder) => folder.id === folderId);
   const [mode, setMode] = useState('effects');
   const [activeWindow, setActiveWindow] = useState('video');
   const [mediaOpen, setMediaOpen] = useState(true);
@@ -76,11 +85,39 @@ export default function WinampPage() {
 
   const reloadTracks = useCallback(async () => {
     if (reloadFlightRef.current) { reloadAgainRef.current = true; return reloadFlightRef.current; }
-    const request = getMusicTracks().then(({ data }) => {
-      setTracks((data.tracks || []).map(asTrack));
+    const request = (async () => {
+      const { data } = await getMusicFolders();
+      const available = data.folders || [];
+      setFolders(available);
+      let selected = folderIdRef.current;
+      if (!selected) {
+        const params = new URLSearchParams(window.location.search);
+        const linkedTrack = params.get('track') || params.get('trackId');
+        if (linkedTrack) {
+          try {
+            const linked = await getMusicTrack(linkedTrack);
+            if (!folderIdRef.current && available.some((folder) => folder.id === linked.data.track.folderId)) {
+              selected = linked.data.track.folderId;
+              folderIdRef.current = selected;
+              setFolderId(selected);
+            }
+          } catch { /* Unavailable or private links fall back to the default playlist. */ }
+        }
+      }
+      if (!available.some((folder) => folder.id === selected)) {
+        selected = available.find((folder) => !folder.isPersonal)?.id || available[0]?.id || null;
+        folderIdRef.current = selected;
+        setFolderId(selected);
+        setTracks([]);
+      }
+      if (!selected) return;
+      const response = await getMusicTracks(selected);
+      // Ignore snapshots that arrive after a different folder was opened.
+      if (folderIdRef.current !== selected) return;
+      setTracks((response.data.tracks || []).map(asTrack));
       setError('');
-    }).catch((requestError) => {
-      setError(requestError.response?.data?.error || 'Could not load the shared music catalog.');
+    })().catch((requestError) => {
+      setError(requestError.response?.data?.error || 'Could not load the music folders.');
     }).finally(() => {
       reloadFlightRef.current = null;
       if (reloadAgainRef.current) {
@@ -134,7 +171,7 @@ export default function WinampPage() {
 
   const publishPlaying = useCallback((state) => {
     setPlayback(state);
-    if (!state.playing || !listeningEnabled || !listeningSharing || !state.trackId) {
+    if (!state.playing || !listeningEnabled || !listeningSharing || !state.trackId || selectedFolder?.isPersonal) {
       clearActivity();
       return;
     }
@@ -148,7 +185,7 @@ export default function WinampPage() {
     } else {
       current.playing = true;
     }
-  }, [clearActivity, listeningSharing, publish]);
+  }, [clearActivity, listeningSharing, publish, selectedFolder?.isPersonal]);
 
   useEffect(() => {
     if (!playback.playing || !listeningEnabled || !listeningSharing) return undefined;
@@ -223,10 +260,10 @@ export default function WinampPage() {
     setError('');
     setNotice('');
     try {
-      const { data } = await addMusicTrack(track);
+      const { data } = await addMusicTrack({ ...track, folderId: folderIdRef.current });
       if (data.track) setTracks((current) => current.some((item) => item.id === data.track.id) ? current : [...current, asTrack(data.track)]);
       setAddDialogOpen(false);
-      setNotice('Added to the shared playlist.');
+      setNotice('Added to the playlist.');
       reloadTracks();
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Could not add that YouTube video.');
@@ -237,11 +274,53 @@ export default function WinampPage() {
     try {
       await removeMusicTrack(track.id);
       setTracks((current) => current.filter((item) => item.id !== track.id));
-      setNotice('Removed from the shared playlist.');
+      setNotice('Removed from the playlist.');
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Could not remove that track.');
     }
   };
+
+  const openFolder = (folder) => {
+    if (folder.id !== folderIdRef.current) {
+      bridge.stop();
+      clearActivity();
+      setPlayerControls(null);
+      folderIdRef.current = folder.id;
+      setFolderId(folder.id);
+      setTracks([]);
+      setNotice('');
+      reloadTracks();
+    }
+    playerControls?.reopen();
+    setContextMenu(null);
+  };
+
+  const handleCreateFolder = async (name) => {
+    setFolderBusy(true); setFolderError('');
+    try {
+      const { data } = await createMusicFolder(name);
+      setFolders((current) => [...current.filter((folder) => folder.id !== data.folder.id), data.folder]);
+      setFolderDialogOpen(false);
+      openFolder(data.folder);
+    } catch (failure) {
+      setFolderError(failure.response?.data?.error || 'Could not create this folder.');
+    } finally { setFolderBusy(false); }
+  };
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    const icon = document.querySelector('link[rel="icon"]');
+    const previousHref = icon?.getAttribute('href');
+    const previousType = icon?.getAttribute('type');
+    document.title = 'Winamp';
+    icon?.setAttribute('href', '/assets/winamp/winamp-icon.png');
+    icon?.setAttribute('type', 'image/png');
+    return () => {
+      document.title = previousTitle;
+      if (previousHref) icon?.setAttribute('href', previousHref);
+      if (previousType) icon?.setAttribute('type', previousType);
+    };
+  }, []);
 
   const beginDrag = (event) => {
     if (event.target.closest('button') || window.innerWidth <= 760) return;
@@ -264,12 +343,22 @@ export default function WinampPage() {
 
   return (
     <main className="winamp-page">
-      <section className={`winamp-desktop active-${activeWindow}`} aria-label="Winamp desktop">
+      <section className={`winamp-desktop active-${activeWindow}`} aria-label="Winamp desktop" onClick={() => setContextMenu(null)} onContextMenu={(event) => {
+        if (event.target.closest('#webamp, .winamp-media-window')) return;
+        event.preventDefault();
+        setContextMenu({ x: Math.min(event.clientX, window.innerWidth - 180), y: Math.min(event.clientY, window.innerHeight - 50) });
+      }}>
+        <div className="winamp-folder-icons">
+          {folders.map((folder) => <button type="button" key={folder.id} className={`winamp-folder-icon ${folderId === folder.id ? 'selected' : ''}`} onDoubleClick={() => openFolder(folder)} onKeyDown={(event) => { if (event.key === 'Enter') openFolder(folder); }} aria-label={`Open ${folder.name} playlist`} title={folder.isPersonal ? 'Private playlist — only you can see it' : 'Shared company playlist'}>
+            <img src="/assets/winamp/folder-icon.png" alt="" /><span>{folder.isPersonal ? 'Personal (not shared)' : folder.name}</span>
+          </button>)}
+        </div>
+        {contextMenu && <div className="winamp-desktop-menu" role="menu" style={{ left: contextMenu.x, top: contextMenu.y }}><button role="menuitem" type="button" onClick={() => { setFolderError(''); setFolderDialogOpen(true); setContextMenu(null); }}>New folder…</button></div>}
         <button className="winamp-desktop-shortcut" type="button" title="Open Winamp" onClick={() => { playerControls?.reopen(); setMediaOpen(true); }} disabled={!playerControls}>
-          <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#252535" stroke="#c4c4cc" d="M7 5h34v34H7z"/><path fill="#f6ca38" stroke="#8f6618" d="M30 7 14 25h11l-7 15 18-21H25z"/><path fill="white" stroke="#222" d="M3 30h16v15H3z"/><path fill="#153b9f" d="M6 41v-7h6v-3l5 5-5 5v-3H9v3z"/></svg>
+          <img src="/assets/winamp/winamp-icon.png" alt="" />
           <span>Winamp</span>
         </button>
-        <WebampPlayer bridge={bridge} tracks={tracks} active={true} onFocus={() => setActiveWindow('webamp')} onPlaybackState={publishPlaying} onTrackSelected={setSelectedTrack} onReady={setPlayerControls} onCatalogRequest={openAddDialog} onRemoveTrack={handleRemoveTrack} onRemoveBlocked={(reason) => setNotice(reason)} onError={(value) => setError(value.message || String(value))} />
+        <WebampPlayer key={folderId || 'loading'} bridge={bridge} tracks={tracks} active={true} onFocus={() => setActiveWindow('webamp')} onPlaybackState={publishPlaying} onTrackSelected={setSelectedTrack} onReady={setPlayerControls} onCatalogRequest={openAddDialog} onRemoveTrack={handleRemoveTrack} onRemoveBlocked={(reason) => setNotice(reason)} onError={(value) => setError(value.message || String(value))} />
 
         <section hidden={!mediaOpen} ref={mediaWindowRef} className={`winamp-media-window ${mode === 'effects' ? 'is-effects' : ''}`} aria-label="YouTube media window" onPointerDownCapture={() => setActiveWindow('video')}>
           <div className="winamp-window-title" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={() => { dragRef.current = null; }}>
@@ -295,9 +384,10 @@ export default function WinampPage() {
         </section>
       </section>
 
-      <AddTrackDialog open={addDialogOpen} busy={submitting} error={error} onSubmit={handleAddTrack} onClose={() => setAddDialogOpen(false)} />
+      <NewFolderDialog open={folderDialogOpen} busy={folderBusy} error={folderError} onSubmit={handleCreateFolder} onClose={() => setFolderDialogOpen(false)} />
+      <AddTrackDialog folderName={selectedFolder?.name} isPersonal={selectedFolder?.isPersonal} open={addDialogOpen} busy={submitting} error={error} onSubmit={handleAddTrack} onClose={() => setAddDialogOpen(false)} />
       <aside className="winamp-desktop-controls" aria-label="Player options">
-        {listeningEnabled && <label className="winamp-share-toggle"><input type="checkbox" checked={Boolean(listeningSharing)} onChange={(event) => setListeningSharing(event.target.checked).catch((failure) => setError(failure.response?.data?.error || 'Could not update listening sharing.'))} /> Share listening activity</label>}
+        {listeningEnabled && <label className="winamp-share-toggle"><input type="checkbox" disabled={Boolean(selectedFolder?.isPersonal)} title={selectedFolder?.isPersonal ? 'Personal listening is never shared' : undefined} checked={Boolean(listeningSharing)} onChange={(event) => setListeningSharing(event.target.checked).catch((failure) => setError(failure.response?.data?.error || 'Could not update listening sharing.'))} /> Share listening activity</label>}
         {(notice || (error && !addDialogOpen)) && <span className="winamp-desktop-notice" role={error ? 'alert' : 'status'}>{error || notice}</span>}
       </aside>
     </main>

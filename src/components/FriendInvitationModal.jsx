@@ -32,8 +32,8 @@ const FriendInvitationModal = ({ request, onRespond, onClose }) => {
         </div>
         {error && <p className="mt-2 text-red-700">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" disabled={loading} onClick={() => respond('declined')}>Decline</button>
-          <button type="button" disabled={loading} onClick={() => respond('accepted')}>{loading ? 'Updating...' : 'Accept'}</button>
+          <button type="button" disabled={loading} className="msn-glossy-button rounded px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => respond('declined')}>Decline</button>
+          <button type="button" disabled={loading} className="msn-glossy-button rounded px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => respond('accepted')}>{loading ? 'Updating...' : 'Accept'}</button>
         </div>
       </div>
     </div>
