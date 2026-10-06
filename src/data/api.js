@@ -14,6 +14,9 @@ export const signInWithMicrosoft = (idToken) => api.post('/auth/microsoft', { id
 export const signUp = (data) => api.post('/auth/sign-up', data);
 export const checkToken = () => api.get('/auth/check-token');
 export const getAdminMetrics = () => api.get('/admin/metrics', { params: { _nocache: Date.now() }, headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } });
+export const getAdmins = () => api.get('/admin/admins');
+export const addAdmin = (email) => api.post('/admin/admins', { email });
+export const removeAdmin = (email) => api.delete(`/admin/admins/${encodeURIComponent(email)}`);
 export const getUsers = (search = '') => api.get('/users', { params: search ? { search } : undefined });
 export const getFriends = () => api.get('/friends');
 export const getContactPreferences = () => api.get('/contact-preferences');

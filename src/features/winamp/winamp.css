@@ -71,12 +71,12 @@
 
 /* MilkDrop chrome uses the supplied classic skin artwork as scalable slices. */
 .winamp-media-window, .winamp-media-window.is-effects { box-sizing: border-box; width: min(760px, calc(100vw - 365px)); padding: 0; border: solid transparent; border-width: 3px 20px 20px; border-image: url('/assets/winamp/milkdrop-frame.png') 3 20 20 20 stretch; background: #29293e; box-shadow: none; }
-.winamp-window-title { height: 24px; margin: 0 -11px; padding: 0; gap: 5px; border: 0; background: #29293e; }
-.milkdrop-title-rail { flex: 1; height: 14px; background: url('/assets/winamp/milkdrop-rail.png') center / 100% 14px no-repeat; }
-.milkdrop-title { width: 112px; height: 18px; image-rendering: pixelated; }
+.winamp-window-title { height: 14px; margin: 0 -11px; padding: 0; gap: 5px; border: 0; background: #29293e; }
+.milkdrop-title-rail { flex: 1; height: 7px; background: url('/assets/winamp/milkdrop-rail.png') center / 100% 7px no-repeat; }
+.milkdrop-title { width: 56px; height: 9px; image-rendering: pixelated; }
 .winamp-window-actions { margin-left: 0; gap: 2px; }
-.winamp-window-actions button { width: 18px; height: 17px; border: 0; padding: 0; background: #29293e; color: #c6b46a; font: bold 13px monospace; }
-.winamp-window-actions button img { display: block; width: 18px; height: 17px; image-rendering: pixelated; }
+.winamp-window-actions button { width: 9px; height: 9px; border: 0; padding: 0; background: #29293e; color: #c6b46a; font: bold 9px monospace; }
+.winamp-window-actions button img { display: block; width: 9px; height: 9px; image-rendering: pixelated; }
 .winamp-media-toolbar { height: 26px; padding: 0 4px; background: #29293e; border-bottom: 1px solid #77778c; }
 .winamp-media-toolbar button { padding: 2px 6px; color: #bebecb; background: #35354c; border: 1px solid #646478; font: 10px Tahoma, sans-serif; }
 .winamp-media-toolbar button.active { color: #f1db89; border-color: #b6a369; box-shadow: none; }

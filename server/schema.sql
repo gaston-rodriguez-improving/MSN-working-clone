@@ -106,3 +106,15 @@ CREATE TABLE IF NOT EXISTS user_music_session_sequences (
   client_sequence BIGINT NOT NULL,
   PRIMARY KEY(user_id, session_id)
 );
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  email TEXT PRIMARY KEY,
+  added_by TEXT NOT NULL DEFAULT 'system',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS user_presence_days (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  day DATE NOT NULL,
+  PRIMARY KEY(user_id, day)
+);
+CREATE INDEX IF NOT EXISTS idx_user_presence_days_day ON user_presence_days(day);

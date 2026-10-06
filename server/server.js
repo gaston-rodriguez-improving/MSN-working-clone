@@ -28,9 +28,11 @@ const config = {
   eventId: process.env.EVENT_ID || 'default-event',
   azureAdTenantId: process.env.AZURE_AD_TENANT_ID || '',
   azureAdClientId: process.env.AZURE_AD_CLIENT_ID || '',
-  allowedDomains: (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean)
+  allowedDomains: (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean),
+  timezone: process.env.ADMIN_TIMEZONE || 'America/Argentina/Buenos_Aires'
 };
 const adminEmails = new Set(['gaston.rodriguez@improving.com', 'diana.corigliano@improving.com']);
+const normalizeEmail = value => String(value || '').trim().toLowerCase();
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(x => x.trim()) : true }));
 app.use(express.json({ limit: '1mb' }));
@@ -46,15 +48,20 @@ function auth(req, res, next) {
   if (claims.companyId !== config.companyId || claims.eventId !== config.eventId) return res.status(401).json({ error: 'Invalid or expired token' });
   getUser(Number(claims.sub)).then(user => { if (!user) return res.status(401).json({ error: 'Invalid or expired token' }); req.user = user; req.authProvider = claims.authProvider; next(); }).catch(next);
 }
-function adminAuth(req, res, next) {
-  if (!adminEmails.has(String(req.user.email || '').trim().toLowerCase()) || req.authProvider !== 'microsoft') return res.status(403).json({ error: 'Admin access denied' });
-  next();
+async function isAdminRequest(req) {
+  if (req.authProvider !== 'microsoft') return false;
+  const email = normalizeEmail(req.user.email);
+  return adminEmails.has(email) || !!(await db.query('SELECT 1 FROM admin_users WHERE email = $1', [email])).rows[0];
 }
 async function conversation(id) { return (await db.query('SELECT * FROM conversations WHERE id = $1 AND company_id = $2 AND event_id = $3', [id, config.companyId, config.eventId])).rows[0]; }
 async function member(conversationId, userId) { return !!(await db.query('SELECT 1 FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [conversationId, userId])).rows[0]; }
 async function messageView(row) { return { id: row.id, chatId: row.conversation_id, senderId: row.sender_id, sender: publicUser(await getUser(row.sender_id)), content: row.content, drawAttention: !!row.draw_attention, winks: !!row.winks, createdAt: row.created_at }; }
 async function messageViews(rows) { return Promise.all(rows.map(messageView)); }
 const asyncRoute = handler => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+const adminAuth = asyncRoute(async (req, res, next) => { if (!await isAdminRequest(req)) return res.status(403).json({ error: 'Admin access denied' }); next(); });
+async function recordPresence(userIds) {
+  if (userIds.length) await db.query('INSERT INTO user_presence_days (user_id, day) SELECT unnest($1::int[]), (now() AT TIME ZONE $2)::date ON CONFLICT DO NOTHING', [userIds, config.timezone]);
+}
 const normalizeContactPreferences = preferences => {
   const categories = (Array.isArray(preferences?.categories) ? preferences.categories : [])
     .filter(category => category?.id && category?.name)
@@ -73,25 +80,58 @@ const normalizeContactPreferences = preferences => {
 async function initializeDatabase() {
   for (const key of ['DATABASE_HOST', 'DATABASE_NAME', 'DATABASE_USER', 'DATABASE_PASSWORD']) if (!process.env[key]) throw new Error(`${key} is required`);
   await db.query(fs.readFileSync(path.join(root, 'schema.sql'), 'utf8'));
+  await db.query("INSERT INTO admin_users (email, added_by) SELECT unnest($1::text[]), 'system' ON CONFLICT DO NOTHING", [[...adminEmails]]);
 }
 app.get('/health', (_req, res) => res.json({ ok: true }));
+const adminScope = () => [config.companyId, config.eventId];
+const adminView = row => ({ email: row.email, username: row.username || null, addedBy: row.added_by, createdAt: row.created_at, isOwner: adminEmails.has(row.email) });
+async function listAdmins() {
+  return (await db.query(`SELECT a.email, a.added_by, a.created_at, u.username FROM admin_users a
+    LEFT JOIN users u ON u.email = a.email AND u.company_id = $1 AND u.event_id = $2 ORDER BY a.created_at, a.email`, adminScope())).rows.map(adminView);
+}
 app.get('/admin/metrics', auth, adminAuth, asyncRoute(async (_req, res) => {
-  const values = [config.companyId, config.eventId];
-  const [overviewResult, signupResult] = await Promise.all([
+  const scope = adminScope();
+  const [users, onlineByDay, totals, winks] = await Promise.all([
+    db.query(`SELECT COUNT(*) FILTER (WHERE email !~* 'test')::int AS total, COUNT(*) FILTER (WHERE email ~* 'test')::int AS testers
+      FROM users WHERE company_id = $1 AND event_id = $2`, scope),
+    db.query(`WITH today AS (SELECT (now() AT TIME ZONE $3)::date AS day)
+      SELECT to_char(d.day, 'YYYY-MM-DD') AS date, COUNT(DISTINCT p.user_id)::int AS count
+      FROM today, generate_series((today.day - 13)::timestamp, today.day::timestamp, INTERVAL '1 day') AS d(day)
+      LEFT JOIN (user_presence_days p JOIN users u ON u.id = p.user_id AND u.company_id = $1 AND u.event_id = $2 AND u.email !~* 'test')
+        ON p.day = d.day::date
+      GROUP BY d.day ORDER BY d.day`, [...scope, config.timezone]),
     db.query(`SELECT
-      (SELECT COUNT(*)::int FROM users WHERE company_id = $1 AND event_id = $2) AS total_users,
-      (SELECT COUNT(*)::int FROM users WHERE company_id = $1 AND event_id = $2 AND status = 'online') AS online_users,
-      (SELECT COUNT(*)::int FROM users WHERE company_id = $1 AND event_id = $2 AND created_at >= NOW() - INTERVAL '7 days') AS new_users_7d,
-      (SELECT COUNT(*)::int FROM conversations WHERE company_id = $1 AND event_id = $2) AS total_conversations,
-      (SELECT COUNT(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND c.event_id = $2 AND m.created_at >= NOW() - INTERVAL '7 days') AS messages_7d,
-      (SELECT COUNT(*)::int FROM friend_requests fr JOIN users u ON u.id = fr.recipient_id WHERE u.company_id = $1 AND u.event_id = $2 AND fr.status = 'pending') AS pending_friend_requests,
-      (SELECT COUNT(*)::int FROM friend_requests fr JOIN users u ON u.id = fr.recipient_id WHERE u.company_id = $1 AND u.event_id = $2 AND fr.status = 'accepted') AS accepted_friendships`, values),
-    db.query(`SELECT to_char(days.day, 'YYYY-MM-DD') AS date, COUNT(u.id)::int AS count
-      FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS days(day)
-      LEFT JOIN users u ON u.company_id = $1 AND u.event_id = $2 AND u.created_at >= days.day AND u.created_at < days.day + INTERVAL '1 day'
-      GROUP BY days.day ORDER BY days.day`, values)
+      (SELECT COUNT(*)::int FROM event_music_tracks WHERE company_id = $1 AND event_id = $2) AS songs_added,
+      (SELECT COUNT(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND c.event_id = $2 AND m.draw_attention) AS nudges,
+      (SELECT COUNT(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND c.event_id = $2 AND NOT m.draw_attention AND NOT m.winks) AS messages,
+      (SELECT COUNT(*)::int FROM friend_requests fr JOIN users u ON u.id = fr.recipient_id WHERE u.company_id = $1 AND u.event_id = $2 AND fr.status = 'accepted') AS friends_added`, scope),
+    db.query(`SELECT m.content AS name, COUNT(*)::int AS count FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.company_id = $1 AND c.event_id = $2 AND m.winks GROUP BY m.content ORDER BY count DESC, name LIMIT 5`, scope)
   ]);
-  res.set('Cache-Control', 'no-store').json({ generatedAt: new Date().toISOString(), overview: overviewResult.rows[0], signupsByDay: signupResult.rows });
+  const t = totals.rows[0];
+  res.set('Cache-Control', 'no-store').json({
+    generatedAt: new Date().toISOString(), timezone: config.timezone,
+    users: { total: users.rows[0].total, testersExcluded: users.rows[0].testers },
+    onlineByDay: onlineByDay.rows,
+    fun: { songsAdded: t.songs_added, nudges: t.nudges, messages: t.messages, friendsAdded: t.friends_added, topWinks: winks.rows }
+  });
+}));
+app.get('/admin/admins', auth, adminAuth, asyncRoute(async (_req, res) => res.set('Cache-Control', 'no-store').json({ admins: await listAdmins() })));
+app.post('/admin/admins', auth, adminAuth, asyncRoute(async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return res.status(400).json({ error: 'A valid email is required' });
+  if (!emailAllowed(email)) return res.status(400).json({ error: 'Email domain is not allowed' });
+  const inserted = await db.query('INSERT INTO admin_users (email, added_by) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING email', [email, normalizeEmail(req.user.email)]);
+  if (!inserted.rows[0]) return res.status(409).json({ error: 'This person is already an administrator' });
+  res.status(201).json({ admins: await listAdmins() });
+}));
+app.delete('/admin/admins/:email', auth, adminAuth, asyncRoute(async (req, res) => {
+  const email = normalizeEmail(req.params.email);
+  if (adminEmails.has(email)) return res.status(403).json({ error: 'The original administrators cannot be removed' });
+  if (email === normalizeEmail(req.user.email)) return res.status(400).json({ error: 'You cannot remove yourself' });
+  const removed = await db.query('DELETE FROM admin_users WHERE email = $1 RETURNING email', [email]);
+  if (!removed.rows[0]) return res.status(404).json({ error: 'Administrator not found' });
+  res.json({ admins: await listAdmins() });
 }));
 app.post('/auth/sign-up', asyncRoute(async (req, res) => {
   const { email, password } = req.body || {}; const username = String(req.body?.username || req.body?.name || '').trim();
@@ -130,7 +170,7 @@ async function broadcastCatalogChange() {
 }
 app.get('/music/tracks', auth, asyncRoute(async (req, res) => {
   const rows = (await db.query(`${musicTrackSelect} WHERE t.company_id = $1 AND t.event_id = $2 AND t.removed_at IS NULL ORDER BY t.id`, [config.companyId, config.eventId])).rows;
-  const isAdmin = req.authProvider === 'microsoft' && adminEmails.has(String(req.user.email || '').trim().toLowerCase());
+  const isAdmin = await isAdminRequest(req);
   res.set('Cache-Control', 'no-store').json({ tracks: rows.map(row => musicTrackView(row, req.user.id, isAdmin)) });
 }));
 app.post('/music/tracks', auth, asyncRoute(async (req, res) => {
@@ -143,7 +183,7 @@ app.post('/music/tracks', auth, asyncRoute(async (req, res) => {
     const inserted = await db.query(`INSERT INTO event_music_tracks(company_id,event_id,video_id,title,artist,contributor_id)
       VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, [config.companyId, config.eventId, videoId, title, artist, req.user.id]);
     const row = (await db.query(`${musicTrackSelect} WHERE t.id = $1`, [inserted.rows[0].id])).rows[0];
-    const isAdmin = req.authProvider === 'microsoft' && adminEmails.has(String(req.user.email || '').trim().toLowerCase());
+    const isAdmin = await isAdminRequest(req);
     await broadcastCatalogChange(); res.status(201).json({ track: musicTrackView(row, req.user.id, isAdmin) });
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ error: 'This video is already in the shared catalog' });
@@ -156,7 +196,7 @@ app.delete('/music/tracks/:id', auth, asyncRoute(async (req, res) => {
   const row = (await db.query(`SELECT t.*, u.email AS contributor_email FROM event_music_tracks t JOIN users u ON u.id=t.contributor_id
     WHERE t.id=$1 AND t.company_id=$2 AND t.event_id=$3 AND t.removed_at IS NULL`, [id, config.companyId, config.eventId])).rows[0];
   if (!row) return res.status(404).json({ error: 'Track not found' });
-  const isAdmin = req.authProvider === 'microsoft' && adminEmails.has(String(req.user.email || '').trim().toLowerCase());
+  const isAdmin = await isAdminRequest(req);
   if (row.contributor_id !== req.user.id && !isAdmin) return res.status(403).json({ error: 'Only the contributor or an administrator can remove this track' });
   await db.query('UPDATE event_music_tracks SET removed_at=CURRENT_TIMESTAMP, removed_by=$1 WHERE id=$2 AND removed_at IS NULL', [req.user.id, id]);
   await broadcastCatalogChange(); res.json({ ok: true });
@@ -400,6 +440,7 @@ app.use((error, _req, res, next) => { if (res.headersSent) return next(error); r
 const server = http.createServer(app); const wss = new WebSocketServer({ server, path: '/ws' });
 const heartbeat = setInterval(() => { for (const client of wss.clients) { if (client.isAlive === false) { client.terminate(); continue; } client.isAlive = false; client.ping(); } }, 30000);
 heartbeat.unref();
+const presenceSweep = setInterval(() => recordPresence([...sockets.keys()]).catch(() => {}), 300000); presenceSweep.unref();
 wss.on('close', () => clearInterval(heartbeat));
 wss.on('connection', (socket, req) => {
   let user; let ready = false; let messageChain = Promise.resolve(); const pendingMessages = []; const socketSessions = new Map(); const socketId = crypto.randomUUID();
@@ -438,7 +479,7 @@ wss.on('connection', (socket, req) => {
   (async () => {
     const token = new URL(req.url, `http://${req.headers.host}`).searchParams.get('token'); const claims = jwt.verify(token, config.jwtSecret); if (claims.companyId !== config.companyId || claims.eventId !== config.eventId) throw new Error(); user = await getUser(Number(claims.sub)); if (!user || socket.readyState !== WebSocket.OPEN) throw new Error();
     if (!sockets.has(user.id)) sockets.set(user.id, new Set()); sockets.get(user.id).add(socket);
-    await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); await broadcastUser('user_status_update', await getUser(user.id));
+    await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); recordPresence([user.id]).catch(() => {}); await broadcastUser('user_status_update', await getUser(user.id));
     await pushListeningSnapshot(user.id, socket);
     ready = true;
     socket.send(JSON.stringify({ type: 'socket_ready', payload: {} }));
