@@ -115,6 +115,7 @@ const NudgeLeader = ({ leader, title, description, loading }) => {
     <h3 className="mt-4 text-[15px] font-semibold text-[#17344d]">{title}</h3>
     {loading ? <Skeleton className="mt-3 h-7 w-28" /> : leader ? <>
       <p className="mt-2 min-w-0 text-[18px] font-semibold"><DisplayName value={leader.username} /></p>
+      {leader.email && <p className="mt-1 break-all text-[12px] text-[#7b91a0]">{leader.email}</p>}
       <p className="mt-1 text-[12px] text-[#6d8394]">{formatNumber(leader.count)} {t('nudges')}</p>
     </> : <p className="mt-2 text-[14px] text-[#8296a5]">{t('Todavía no hay nudges')}</p>}
     <p className="mt-2 text-[12px] text-[#6d8394]">{description}</p>

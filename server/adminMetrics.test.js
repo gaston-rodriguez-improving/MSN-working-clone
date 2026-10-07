@@ -29,8 +29,8 @@ test('nudge leaders count senders and recipients without counting normal message
     const elsewhere = await chat('elsewhere',ids,'different-event');
     for (let i=0;i<8;i++) await send(elsewhere,ids[2]);
     const leaders = await nudgeLeaders(db,scope);
-    assert.deepEqual(leaders.topNudgeSender, {id:ids[0],username:'<font color="#FF0000">Alice</font>',count:4});
-    assert.deepEqual(leaders.topNudgeRecipient, {id:ids[1],username:'Bob',count:3});
+    assert.deepEqual(leaders.topNudgeSender, {id:ids[0],username:'<font color="#FF0000">Alice</font>',email:'0@fixture.test',count:4});
+    assert.deepEqual(leaders.topNudgeRecipient, {id:ids[1],username:'Bob',email:'1@fixture.test',count:3});
   } finally {
     await db.query('ROLLBACK'); db.release(); await pool.end();
   }
