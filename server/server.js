@@ -1,3 +1,4 @@
+const { nudgeLeaders } = require('./adminMetrics');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -91,7 +92,7 @@ async function listAdmins() {
 }
 app.get('/admin/metrics', auth, adminAuth, asyncRoute(async (_req, res) => {
   const scope = adminScope();
-  const [users, onlineByDay, totals, winks] = await Promise.all([
+  const [users, onlineByDay, totals, winks, leaders] = await Promise.all([
     db.query(`SELECT COUNT(*) FILTER (WHERE email !~* 'test')::int AS total, COUNT(*) FILTER (WHERE email ~* 'test')::int AS testers
       FROM users WHERE company_id = $1 AND event_id = $2`, scope),
     db.query(`WITH today AS (SELECT (now() AT TIME ZONE $3)::date AS day)
@@ -106,14 +107,15 @@ app.get('/admin/metrics', auth, adminAuth, asyncRoute(async (_req, res) => {
       (SELECT COUNT(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.company_id = $1 AND c.event_id = $2 AND NOT m.draw_attention AND NOT m.winks) AS messages,
       (SELECT COUNT(*)::int FROM friend_requests fr JOIN users u ON u.id = fr.recipient_id WHERE u.company_id = $1 AND u.event_id = $2 AND fr.status = 'accepted') AS friends_added`, scope),
     db.query(`SELECT m.content AS name, COUNT(*)::int AS count FROM messages m JOIN conversations c ON c.id = m.conversation_id
-      WHERE c.company_id = $1 AND c.event_id = $2 AND m.winks GROUP BY m.content ORDER BY count DESC, name LIMIT 5`, scope)
+      WHERE c.company_id = $1 AND c.event_id = $2 AND m.winks GROUP BY m.content ORDER BY count DESC, name LIMIT 5`, scope),
+    nudgeLeaders(db, scope)
   ]);
   const t = totals.rows[0];
   res.set('Cache-Control', 'no-store').json({
     generatedAt: new Date().toISOString(), timezone: config.timezone,
     users: { total: users.rows[0].total, testersExcluded: users.rows[0].testers },
     onlineByDay: onlineByDay.rows,
-    fun: { songsAdded: t.songs_added, nudges: t.nudges, messages: t.messages, friendsAdded: t.friends_added, topWinks: winks.rows }
+    fun: { songsAdded: t.songs_added, nudges: t.nudges, messages: t.messages, friendsAdded: t.friends_added, topWinks: winks.rows, ...leaders }
   });
 }));
 app.get('/admin/admins', auth, adminAuth, asyncRoute(async (_req, res) => res.set('Cache-Control', 'no-store').json({ admins: await listAdmins() })));
