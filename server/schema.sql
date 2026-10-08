@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   bio TEXT NOT NULL DEFAULT '',
   avatar TEXT NOT NULL DEFAULT 'default',
   banner TEXT NOT NULL DEFAULT 'default',
+  is_managed_profile BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(email, company_id, event_id),
   UNIQUE(username, company_id, event_id)
@@ -176,6 +177,7 @@ CREATE TABLE IF NOT EXISTS fotolog_favorites (
 
 -- Preserve the verified mail account name separately from the MSN nickname.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_managed_profile BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS fotolog_urls (
   slug TEXT PRIMARY KEY,

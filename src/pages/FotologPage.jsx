@@ -110,6 +110,7 @@ export default function FotologPage() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const displayData = preview ? ownData : data;
+  const canManage = !!data?.profile.canManage;
   const selected = displayData?.posts.find((p) => String(p.id) === params.get('photo')) || displayData?.posts[0];
   const selectedId = selected?.id;
   useEffect(() => {
@@ -200,6 +201,7 @@ export default function FotologPage() {
     setView('photo');
   }
   const profile = preview ? { ...ownProfile, ...preview } : data?.profile;
+  const profileDisplayName = stripHtml(profile?.name || 'Mi Fotolog');
   const theme = profile?.theme || {};
   return (
     <div
@@ -274,28 +276,34 @@ export default function FotologPage() {
             <Link to="/fotolog" onClick={() => setView('photo')}>
               MI FOTOLOG ›
             </Link>
-            <button
-              onClick={() => {
-                setError('');
-                setModal('upload');
-              }}
-            >
-              SUBIR FOTO
-            </button>
+            {(mine || canManage) && (
+              <button
+                onClick={() => {
+                  setError('');
+                  setOwnProfile(data.profile);
+                  setOwnData(data);
+                  setModal('upload');
+                }}
+              >
+                SUBIR FOTO
+              </button>
+            )}
             <button onClick={() => setView('archive')}>ARCHIVO</button>
             <button onClick={() => setView('friends')}>AMIGOS/FAVORITOS</button>
-            <button
-              onClick={() => {
-                action(async () => {
-                  const own = (await api.get(`/fotolog/profiles/${user.id}`)).data;
-                  setOwnProfile(own.profile);
-                  setOwnData(own);
-                  setModal('custom');
-                });
-              }}
-            >
-              MI CUENTA
-            </button>
+            {(mine || canManage) && (
+              <button
+                onClick={() => {
+                  action(async () => {
+                    const own = canManage && !mine ? data : (await api.get(`/fotolog/profiles/${user.id}`)).data;
+                    setOwnProfile(own.profile);
+                    setOwnData(own);
+                    setModal('custom');
+                  });
+                }}
+              >
+                {canManage && !mine ? 'ADMINISTRAR LENI' : 'MI CUENTA'}
+              </button>
+            )}
           </nav>
         </header>
         <div className="fl-notice">Una foto por día. Un recuerdo para siempre.</div>
@@ -307,15 +315,15 @@ export default function FotologPage() {
         {loading && <p role="status">Cargando Fotolog…</p>}
         {profile && (
           <>
-            {theme.banner && <img className="fl-banner" src={theme.banner} alt={`Banner de ${profile.name}`} />}
+            {theme.banner && <img className="fl-banner" src={theme.banner} alt={`Banner de ${profileDisplayName}`} />}
             <div className="fl-profile">
-              <h1>{stripHtml(profile.name)}</h1>
-              <span>Acerca de {stripHtml(profile.name)} · </span>
+              <h1>{profileDisplayName}</h1>
+              <span>Acerca de {profileDisplayName} · </span>
               <button className="fl-link" onClick={() => setView('archive')}>
                 Mi archivo
               </button>
               <p>{profile.description || 'Bienvenidos a mi Fotolog :)'}</p>
-              {!mine && (
+              {!mine && !canManage && (
                 <button
                   disabled={busy}
                   onClick={() =>
@@ -332,7 +340,7 @@ export default function FotologPage() {
             <div className="fl-columns">
               <aside>
                 <h3>Fotos Recientes</h3>
-                <p>de {stripHtml(profile.name)}</p>
+                <p>de {profileDisplayName}</p>
                 {displayData.posts.slice(0, 6).map((p) => (
                   <figure key={p.id}>
                     <button className="fl-thumbnail" onClick={() => select(p)}>
@@ -468,7 +476,7 @@ export default function FotologPage() {
               </main>
               <aside className="fl-friends">
                 <h3>Amigos/Favoritos</h3>
-                <p>de {stripHtml(profile.name)}</p>
+                <p>de {profileDisplayName}</p>
                 {displayData.favorites.map((f) => (
                   <figure key={f.id}>
                     <Link to={`/fotolog/${f.slug}`}>
@@ -513,19 +521,21 @@ export default function FotologPage() {
                 action(async () => {
                   if (modal === 'upload') {
                     await api.post('/fotolog/posts', {
+                      userId: ownProfile?.user_id,
                       image: await readImage(values.get('image')),
                       title: values.get('title'),
                       body: values.get('body'),
                     });
                   } else {
-                    const current = (await api.get(`/fotolog/profiles/${user.id}`)).data.profile;
-                    await api.put('/fotolog/profile', await customization(values, current));
+                    const targetId = ownProfile?.user_id || user.id;
+                    const current = ownProfile || (await api.get(`/fotolog/profiles/${targetId}`)).data.profile;
+                    await api.put('/fotolog/profile', { ...(await customization(values, current)), userId: targetId });
                   }
-                  if (mine) await load();
+                  if (mine || canManage) await load();
                   else navigate('/fotolog');
                   setModal(null);
                   setView('photo');
-                  if (mine) setParams({});
+                  if (mine || canManage) setParams({});
                 });
               }}
             >

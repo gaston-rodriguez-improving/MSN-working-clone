@@ -1,10 +1,10 @@
 const { ensureFotologUrl } = require('./fotologUrls');
 const image = (value) =>
   typeof value === 'string' && value.length <= 700000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
-const fotologName = (user) => user.account_name || 'Mi Fotolog';
-const nameSql = "COALESCE(NULLIF(p.name, ''), NULLIF(u.account_name, ''), 'Mi Fotolog')";
+const fotologName = (user) => String(user?.account_name || '').trim() || 'Mi Fotolog';
+const nameSql = "COALESCE(NULLIF(BTRIM(p.name), ''), NULLIF(BTRIM(u.account_name), ''), 'Mi Fotolog')";
 const color = (value) => /^#[a-fA-F0-9]{6}$/.test(value);
-module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, config }) {
+module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, config, isAdminRequest }) {
   const exists = async (id) => Number.isSafeInteger(Number(id)) && (await getUser(Number(id)));
   const withUrls = async (rows, key = 'id') =>
     Promise.all(rows.map(async (row) => ({ ...row, slug: await ensureFotologUrl(db, row[key]) })));
@@ -44,15 +44,17 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
         ),
         db.query('SELECT name FROM fotolog_profiles WHERE user_id=$1', [req.user.id]),
       ]);
+      const canManage = user.id === req.user.id || (user.is_managed_profile && await isAdminRequest(req));
       res.json({
         viewerName: viewer.rows[0]?.name || fotologName(req.user),
         profile: {
           user_id: user.id,
-          name: fotologName(user),
           description: '',
           theme: {},
           ...profile.rows[0],
+          name: profile.rows[0]?.name?.trim() || fotologName(user),
           slug: await ensureFotologUrl(db, user.id),
+          canManage,
         },
         posts: posts.rows,
         favorites: await withUrls(favorites.rows),
@@ -84,11 +86,16 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
         if (theme[key] && !image(theme[key])) return res.status(400).json({ error: 'Imagen inválida o demasiado grande' });
         if (theme[key]) clean[key] = theme[key];
       }
+      const targetId = Number(req.body?.userId || req.user.id);
+      const target = await exists(targetId);
+      if (!target) return res.status(404).json({ error: 'Fotolog no encontrado' });
+      if (targetId !== req.user.id && (req.params.userId || !target.is_managed_profile || !(await isAdminRequest(req))))
+        return res.status(403).json({ error: 'Solo los administradores pueden editar este Fotolog' });
       await db.query(
         'INSERT INTO fotolog_profiles(user_id,name,description,theme) VALUES($1,$2,$3,$4) ON CONFLICT(user_id) DO UPDATE SET name=$2,description=$3,theme=$4',
-        [req.user.id, name.trim(), description, clean]
+        [targetId, name.trim(), description, clean]
       );
-      res.json({ ok: true, slug: await ensureFotologUrl(db, req.user.id) });
+      res.json({ ok: true, slug: await ensureFotologUrl(db, targetId) });
     })
   );
   app.post(
@@ -105,9 +112,14 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
         body.length > 10000
       )
         return res.status(400).json({ error: 'Revisá la foto, el título y el texto' });
+      const targetId = Number(req.body?.userId || req.user.id);
+      const target = await exists(targetId);
+      if (!target) return res.status(404).json({ error: 'Fotolog no encontrado' });
+      if (targetId !== req.user.id && (req.params.userId || !target.is_managed_profile || !(await isAdminRequest(req))))
+        return res.status(403).json({ error: 'Solo los administradores pueden publicar en este Fotolog' });
       const result = await db.query(
         `INSERT INTO fotolog_posts(user_id,image,title,body,day) VALUES($1,$2,$3,$4,(now() AT TIME ZONE $5)::date) ON CONFLICT(user_id,day) DO NOTHING RETURNING id`,
-        [req.user.id, photo, title.trim(), body, config.timezone]
+        [targetId, photo, title.trim(), body, config.timezone]
       );
       if (!result.rows.length) return res.status(409).json({ error: 'Ya publicaste tu foto de hoy. ¡Volvé mañana!' });
       res.status(201).json(result.rows[0]);

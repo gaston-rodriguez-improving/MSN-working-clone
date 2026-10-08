@@ -1,4 +1,4 @@
-const reserved = new Set(['users', 'profiles', 'profile', 'posts', 'favorites']);
+const reserved = new Set(['users', 'profiles', 'profile', 'posts', 'favorites', 'leni']);
 function slugBase(name) {
   let slug =
     String(name)
@@ -21,7 +21,7 @@ async function ensureFotologUrl(db, userId) {
     const {
       rows: [user],
     } = await client.query(
-      "SELECT COALESCE(NULLIF(p.name,''),NULLIF(u.account_name,''),'Mi Fotolog') AS name FROM users u LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE u.id=$1",
+      "SELECT COALESCE(NULLIF(p.name,''),NULLIF(u.account_name,''),'Mi Fotolog') AS name, u.is_managed_profile FROM users u LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE u.id=$1",
       [userId]
     );
     const {
@@ -31,7 +31,7 @@ async function ensureFotologUrl(db, userId) {
       await client.query('COMMIT');
       return current.slug;
     }
-    const base = slugBase(user.name);
+    const base = user.is_managed_profile ? 'leni' : slugBase(user.name);
     let slug = base;
     for (let attempt = 0; ; attempt += 1) {
       await client.query('INSERT INTO fotolog_urls(slug,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [slug, userId]);

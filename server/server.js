@@ -12,6 +12,7 @@ const { Pool } = require('pg');
 const { WebSocketServer, WebSocket } = require('ws');
 const { accountNameFromClaims } = require('./accountName');
 const { parseYouTubeVideoId } = require('./music');
+const { ensureFotologUrl } = require('./fotologUrls');
 
 const root = __dirname;
 const db = new Pool({
@@ -84,8 +85,20 @@ async function initializeDatabase() {
   for (const key of ['DATABASE_HOST', 'DATABASE_NAME', 'DATABASE_USER', 'DATABASE_PASSWORD']) if (!process.env[key]) throw new Error(`${key} is required`);
   await db.query(fs.readFileSync(path.join(root, 'schema.sql'), 'utf8'));
   await db.query("INSERT INTO admin_users (email, added_by) SELECT unnest($1::text[]), 'system' ON CONFLICT DO NOTHING", [[...adminEmails]]);
+  const email = 'fotolog-leni@system.invalid';
+  let leni = (await db.query('SELECT * FROM users WHERE email=$1 AND company_id=$2 AND event_id=$3', [email, config.companyId, config.eventId])).rows[0];
+  if (!leni) {
+    const username = await uniqueUsername(email, 'fotolog-leni');
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
+    leni = (await db.query(`INSERT INTO users(email,username,password_hash,company_id,event_id,account_name,is_managed_profile)
+      VALUES($1,$2,$3,$4,$5,'Leni',TRUE) RETURNING *`, [email, username, passwordHash, config.companyId, config.eventId])).rows[0];
+  } else {
+    await db.query('UPDATE users SET is_managed_profile=TRUE, account_name=CASE WHEN account_name=\'\' THEN \'Leni\' ELSE account_name END WHERE id=$1', [leni.id]);
+  }
+  await db.query("INSERT INTO fotolog_profiles(user_id,name,description,theme) VALUES($1,'Leni','La mascota de la empresa 🐾','{}') ON CONFLICT(user_id) DO NOTHING", [leni.id]);
+  await ensureFotologUrl(db, leni.id);
 }
-require('./fotolog')(app, { db, auth, asyncRoute, getUser, config });
+require('./fotolog')(app, { db, auth, asyncRoute, getUser, config, isAdminRequest });
 app.get('/health', (_req, res) => res.json({ ok: true }));
 const adminScope = () => [config.companyId, config.eventId];
 const adminView = row => ({ email: row.email, username: row.username || null, addedBy: row.added_by, createdAt: row.created_at, isOwner: adminEmails.has(row.email) });
