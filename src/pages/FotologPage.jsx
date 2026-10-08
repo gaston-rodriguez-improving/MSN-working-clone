@@ -293,12 +293,9 @@ export default function FotologPage() {
           {error && <p role="alert">{error}</p>}
         </div>
       )}
-      {user && data?.canActAsLeni && (
-        <div className="fl-identity-bar">
-          {actingAccount === 'leni' && <strong role="status">Estás usando la cuenta de Leni</strong>}
-          <label>Usar cuenta: <select aria-label="Cuenta de Fotolog" value={actingAccount} disabled={busy || !!modal} onChange={(e) => setActingAccount(e.target.value)}>
-            <option value="personal">Personal</option><option value="leni">Leni</option>
-          </select></label>
+      {user && data?.canActAsLeni && actingAccount === 'leni' && (
+        <div className="fl-identity-bar" role="status">
+          <strong>Estás usando la cuenta de Leni</strong>
         </div>
       )}
       <div className="fl-wrap" inert={preview ? '' : undefined}>
@@ -333,6 +330,15 @@ export default function FotologPage() {
           <div className="fl-account">
             {user ? <>{language === 'es' ? 'Hola' : 'Hi'} <b>{stripHtml(data?.viewerName || user.accountName || 'Mi Fotolog')}</b></> : <Link to="/login">{t.login}</Link>}
             <br />
+            {user && data?.canActAsLeni && (
+              <>
+                <select className="fl-account-switch" aria-label="Leni/Personal" value={actingAccount} disabled={busy || !!modal} onChange={(e) => setActingAccount(e.target.value)}>
+                  <option value="leni">Leni</option>
+                  <option value="personal">Personal</option>
+                </select>
+                {' | '}
+              </>
+            )}
             <button type="button" className="fl-link" onClick={toggleLanguage} aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}>{t.switchLanguage}</button>
           </div>
           <nav>
