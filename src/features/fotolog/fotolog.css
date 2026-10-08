@@ -452,4 +452,4 @@ body:has(.fotolog) {
   color: #111;
   font: 13px Arial, sans-serif;
 }
-.fl-account-switch { font: inherit; color: var(--fl-text); background: var(--fl-bg); max-width: 100px; }
+.fl-account-switch { white-space: nowrap; }

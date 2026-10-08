@@ -332,10 +332,14 @@ export default function FotologPage() {
             <br />
             {user && data?.canActAsLeni && (
               <>
-                <select className="fl-account-switch" aria-label="Leni/Personal" value={actingAccount} disabled={busy || !!modal} onChange={(e) => setActingAccount(e.target.value)}>
-                  <option value="leni">Leni</option>
-                  <option value="personal">Personal</option>
-                </select>
+                <button
+                  type="button"
+                  className="fl-link fl-account-switch"
+                  disabled={busy || !!modal}
+                  onClick={() => setActingAccount(actingAccount === 'leni' ? 'personal' : 'leni')}
+                >
+                  {actingAccount === 'leni' ? 'Cambiar a Personal' : 'Cambiar a Leni'}
+                </button>
                 {' | '}
               </>
             )}
