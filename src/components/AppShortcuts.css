@@ -13,12 +13,32 @@
 }
 
 .app-shortcuts__link {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
   border-radius: 4px;
+}
+
+.app-shortcuts__tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #202a35;
+  color: #fff;
+  font: 12px/1.4 Tahoma, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.app-shortcuts__link:hover .app-shortcuts__tooltip,
+.app-shortcuts__link:focus-visible .app-shortcuts__tooltip {
+  visibility: visible;
 }
 
 .app-shortcuts__link:hover {

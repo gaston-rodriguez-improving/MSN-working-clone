@@ -19,8 +19,9 @@ export default function AppShortcuts() {
   return (
     <nav className="app-shortcuts" aria-label="Accesos a otras apps">
       {apps.filter((app) => app.id !== current && (app.id !== 'winamp' || winampEnabled)).map((app) => (
-        <Link key={app.id} className="app-shortcuts__link" to={app.to} title={app.name} aria-label={`Abrir ${app.name}`}>
+        <Link key={app.id} className="app-shortcuts__link" to={app.to} aria-label={`Abrir ${app.name}`}>
           <img src={app.icon} width="24" height="24" alt="" />
+          <span className="app-shortcuts__tooltip" aria-hidden="true">{app.name}</span>
         </Link>
       ))}
     </nav>
