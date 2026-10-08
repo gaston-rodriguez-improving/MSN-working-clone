@@ -71,7 +71,7 @@ create a new URL while previous URLs and numeric links keep working. Accounts ar
 still scoped to the same company/event. Includes a daily photo (one
 per calendar day in `ADMIN_TIMEZONE`), photo archive/permalinks, guestbook
 comments, user search, favorites, and per-profile colors/banner/background.
-Uploads accept JPEG, PNG, WebP and GIF files up to 500 KB. Images and profile
+Uploads accept JPEG, PNG, WebP and GIF files up to 500 KB. Larger still images are compressed in the browser; animated GIFs must already fit the limit. Images and profile
 settings persist in PostgreSQL, using the additive tables in `server/schema.sql`
 (applied when the API starts). Nginx proxies the Fotolog API endpoints while
 keeping profile URLs as frontend routes.

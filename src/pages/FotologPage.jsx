@@ -5,16 +5,68 @@ import { api } from '../data/api';
 import { stripHtml } from '../helpers/stripHtml';
 import '../features/fotolog/fotolog.css';
 
-async function readImage(file) {
-  if (!file || !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type))
-    throw new Error('Elegí una imagen JPG, PNG, WebP o GIF.');
-  if (file.size > 500000) throw new Error('La imagen debe pesar menos de 500 KB.');
+const MAX_UPLOAD_SIZE = 500000;
+const COMPRESSED_TARGET_SIZE = 460000;
+
+function asDataUrl(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
+}
+
+function canvasBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('No se pudo comprimir la imagen'));
+      },
+      type,
+      quality
+    );
+  });
+}
+
+async function readImage(file) {
+  if (!file || !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type))
+    throw new Error('Elegí una imagen JPG, PNG, WebP o GIF.');
+  if (file.size <= MAX_UPLOAD_SIZE) return asDataUrl(file);
+  if (file.type === 'image/gif') throw new Error('El GIF animado debe pesar menos de 500 KB.');
+  if (typeof createImageBitmap !== 'function') throw new Error('Este navegador no permite reducir la imagen automáticamente.');
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('No se pudo preparar la imagen para subir.');
+    const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+    let width = Math.max(1, Math.round(bitmap.width * scale));
+    let height = Math.max(1, Math.round(bitmap.height * scale));
+    const type = file.type === 'image/png' ? 'image/webp' : file.type;
+
+    for (let sizePass = 0; sizePass < 6; sizePass += 1) {
+      canvas.width = width;
+      canvas.height = height;
+      context.clearRect(0, 0, width, height);
+      context.drawImage(bitmap, 0, 0, width, height);
+      for (const quality of [0.88, 0.8, 0.72, 0.64, 0.56]) {
+        const compressed = await canvasBlob(canvas, type, quality);
+        if (compressed.size <= COMPRESSED_TARGET_SIZE) return await asDataUrl(compressed);
+      }
+      width = Math.max(1, Math.round(width * 0.82));
+      height = Math.max(1, Math.round(height * 0.82));
+    }
+    throw new Error('No se pudo reducir la imagen a menos de 500 KB.');
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('500 KB')) throw error;
+    throw new Error(error.message || 'No se pudo comprimir la imagen.');
+  } finally {
+    bitmap?.close();
+  }
 }
 async function customization(values, current) {
   const theme = { ...current?.theme };
@@ -483,7 +535,7 @@ export default function FotologPage() {
                     Foto
                     <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required autoFocus />
                   </label>
-                  <small>Hasta 500 KB · JPG, PNG, WebP o GIF</small>
+                  <small>Hasta 500 KB · las fotos grandes se reducen automáticamente · GIF animado sin comprimir</small>
                   <label>
                     Título
                     <input name="title" required maxLength={160} />
@@ -532,7 +584,7 @@ export default function FotologPage() {
                       </span>
                     </label>
                   ))}
-                  <small>Imágenes de hasta 500 KB.</small>
+                  <small>Hasta 500 KB · las imágenes grandes se reducen automáticamente.</small>
                 </>
               )}
               {error && (
