@@ -62,3 +62,17 @@ Some features are not yet implemented but are planned for future updates:
 ## Contribute and Share Feedback
 
 If you’d like to contribute to the project or provide feedback, feel free to reach out. I welcome all suggestions and help to improve this nostalgic trip down memory lane!
+
+### Fotolog
+
+`/fotolog` opens the signed-in user's retro photo journal; `/fotolog/:userId`
+opens another account in the same company/event. Includes a daily photo (one
+per calendar day in `ADMIN_TIMEZONE`), photo archive/permalinks, guestbook
+comments, user search, favorites, and per-profile colors/banner/background.
+Uploads accept JPEG, PNG, WebP and GIF files up to 500 KB. Images and profile
+settings persist in PostgreSQL, using the additive tables in `server/schema.sql`
+(applied when the API starts). Nginx proxies the Fotolog API endpoints while
+keeping profile URLs as frontend routes.
+
+Validate the local API with `FOTOLOG_INTEGRATION=1 node --test server/fotolog.integration.test.js`
+after `npm run server:local`. Integration fixtures are removed after the test.

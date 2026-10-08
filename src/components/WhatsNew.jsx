@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import divider from '/assets/general/divider.png';
 
 const messages = [
+    "Una foto por día, amigos y firmas: volvé a <a href='/fotolog' class='link'>Fotolog</a>!",
     "Add your favorite songs and share what you're listening to on <a target='_blank' rel='noopener noreferrer' href='/winamp' class='link'>Winamp</a>!",
     "If you want to know the secrets of this project, please <a target='_blank' rel='noreferrer' href='https://www.youtube.com/watch?v=5SZYz7lZRRI&list=RD5SZYz7lZRRI&start_radio=1' class='link'>click here</a>",
     "Share your feedback: <a target='_blank' rel='noopener noreferrer' href='https://forms.cloud.microsoft/r/Fic8vz75Aa' class='link'>MSN Feedback Experience – Fill out form</a>",

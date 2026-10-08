@@ -36,6 +36,7 @@ const adminEmails = new Set(['gaston.rodriguez@improving.com', 'diana.corigliano
 const normalizeEmail = value => String(value || '').trim().toLowerCase();
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(x => x.trim()) : true }));
+app.use('/fotolog', express.json({ limit: '3mb' }));
 app.use(express.json({ limit: '1mb' }));
 const publicUser = row => row && ({ id: row.id, email: row.email, username: row.username, status: row.status, bio: row.bio, avatar: row.avatar, banner: row.banner });
 const tokenFor = (user, authProvider = 'password') => jwt.sign({ sub: user.id, companyId: user.company_id, eventId: user.event_id, authProvider }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
@@ -83,6 +84,7 @@ async function initializeDatabase() {
   await db.query(fs.readFileSync(path.join(root, 'schema.sql'), 'utf8'));
   await db.query("INSERT INTO admin_users (email, added_by) SELECT unnest($1::text[]), 'system' ON CONFLICT DO NOTHING", [[...adminEmails]]);
 }
+require('./fotolog')(app, { db, auth, asyncRoute, getUser, config });
 app.get('/health', (_req, res) => res.json({ ok: true }));
 const adminScope = () => [config.companyId, config.eventId];
 const adminView = row => ({ email: row.email, username: row.username || null, addedBy: row.added_by, createdAt: row.created_at, isOwner: adminEmails.has(row.email) });

@@ -15,6 +15,7 @@ import { DiscordAuthHandler } from './utils/discordAuth';
 import UpdateBanner from './components/UpdateBanner';
 import { winampEnabled } from './features/musicConfig';
 
+const FotologPage = lazy(() => import('./pages/FotologPage'));
 const WinampPage = lazy(() => import('./pages/WinampPage'));
 
 const Main = () => {
@@ -31,6 +32,7 @@ const Main = () => {
                   <Route path="/chat/:id" element={<PrivateRoute element={ChatPage} />} />
                   <Route path="/admin" element={<PrivateRoute element={AdminPage} />} />
                   {winampEnabled && <Route path="/winamp" element={<Suspense fallback={<p role="status">Loading Winamp…</p>}><PrivateRoute element={WinampPage} /></Suspense>} />}
+                  <Route path="/fotolog/:userId?" element={<Suspense fallback={<p role="status">Cargando Fotolog…</p>}><PrivateRoute element={FotologPage} /></Suspense>} />
                   <Route path="/discordAuth" element={<DiscordAuthHandler />} />
                 </Routes>
               </Router>

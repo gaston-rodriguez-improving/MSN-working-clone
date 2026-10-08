@@ -1,0 +1,436 @@
+/* Messenger locks the document; Fotolog uses normal page scrolling. */
+body:has(.fotolog) {
+  overflow-y: auto;
+  scrollbar-width: auto;
+  -ms-overflow-style: auto;
+}
+
+.fotolog {
+  min-height: 100vh;
+  background-color: var(--fl-bg);
+  color: var(--fl-text);
+  font: 13px Arial, sans-serif;
+  padding: 24px 12px;
+  background-repeat: repeat;
+}
+.fotolog * {
+  box-sizing: border-box;
+}
+.fotolog a,
+.fotolog .fl-link {
+  color: var(--fl-link);
+  text-decoration: underline;
+}
+.fotolog button,
+.fotolog input,
+.fotolog textarea {
+  font: inherit;
+  color: inherit;
+}
+.fotolog button {
+  cursor: pointer;
+  background: #eee;
+  border: 1px solid #999;
+  padding: 4px 10px;
+  border-radius: 0;
+  box-shadow: none;
+}
+.fotolog button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.fotolog input,
+.fotolog textarea {
+  background: white;
+  color: black;
+  border: 1px solid #999;
+  padding: 5px;
+  border-radius: 0;
+  box-shadow: none;
+}
+.fl-wrap {
+  max-width: 1000px;
+  margin: auto;
+}
+.fl-header {
+  border: 1px solid currentColor;
+  padding: 18px 14px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 28px;
+}
+.fotolog .fl-logo {
+  display: flex;
+  align-items: center;
+  color: inherit;
+  font-size: 34px;
+  font-weight: bold;
+  letter-spacing: -2px;
+  text-decoration: none;
+}
+.fl-logo span {
+  display: inline-block;
+  width: 45px;
+  height: 45px;
+  border: 10px solid currentColor;
+  margin-right: 10px;
+}
+.fl-logo sup {
+  font-size: 10px;
+  align-self: flex-start;
+  margin-top: 8px;
+  letter-spacing: 0;
+}
+.fl-search {
+  flex: 1;
+}
+.fl-search > div {
+  display: flex;
+  gap: 5px;
+}
+.fl-search input {
+  width: 100%;
+  min-width: 0;
+}
+.fl-search small {
+  display: block;
+  margin-top: 8px;
+}
+.fl-account {
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.fl-header nav {
+  width: 100%;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.fl-header nav button,
+.fotolog .fl-link,
+.fl-pager button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--fl-link);
+  text-decoration: underline;
+}
+.fl-header nav a {
+  text-decoration: none;
+}
+.fl-notice {
+  text-align: center;
+  font-size: 11px;
+  padding: 20px;
+}
+.fl-banner {
+  width: 100%;
+  max-height: 150px;
+  object-fit: cover;
+}
+.fl-profile {
+  text-align: center;
+  padding: 18px 0 28px;
+}
+.fl-profile h1 {
+  font-size: 31px;
+  font-weight: bold;
+  margin: 0 0 8px;
+}
+.fl-profile p {
+  margin: 6px 0;
+  white-space: pre-wrap;
+}
+.fl-columns {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 600px) 150px;
+  gap: 24px;
+  justify-content: center;
+}
+.fotolog h3 {
+  font-size: 15px;
+  font-weight: bold;
+  margin: 0 0 4px;
+}
+.fl-columns aside {
+  text-align: center;
+}
+.fl-columns aside h3 {
+  text-decoration: underline;
+}
+.fl-columns aside > p {
+  margin: 0 0 15px;
+}
+.fl-columns figure {
+  margin: 16px 0 30px;
+}
+.fl-columns aside img,
+.fl-no-photo {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  margin: auto;
+}
+.fotolog .fl-thumbnail {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.fl-columns figcaption {
+  margin-top: 5px;
+}
+.fl-no-photo {
+  background: #eee;
+  color: #666;
+  display: grid;
+  place-items: center;
+}
+.fl-pager {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 15px;
+  font-weight: bold;
+}
+.fl-photo {
+  width: 100%;
+  max-height: 580px;
+  object-fit: contain;
+}
+.fl-meta {
+  text-align: center;
+  font-size: 12px;
+  padding: 14px 0;
+  line-height: 2;
+}
+.fl-caption {
+  padding: 15px 0;
+  line-height: 1.6;
+}
+.fotolog h2 {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0 0 12px;
+}
+.fl-caption p,
+.fl-comment p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fl-guestbook {
+  border-top: 1px solid currentColor;
+  padding-top: 16px;
+}
+.fl-comment {
+  padding: 14px 0;
+  border-bottom: 1px dotted currentColor;
+}
+.fl-comment time {
+  float: right;
+  font-size: 11px;
+}
+.fl-comment p {
+  margin: 8px 0;
+}
+.fotolog textarea {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+}
+.fl-guestbook form {
+  margin-top: 20px;
+}
+.fl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.fl-grid button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+.fl-grid img {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+}
+.fl-grid span {
+  display: block;
+  margin-top: 5px;
+}
+.fl-empty {
+  border: 1px dotted currentColor;
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 25px;
+}
+.fl-empty p {
+  margin: 10px 0 20px;
+}
+.fotolog footer {
+  text-align: center;
+  font-size: 11px;
+  margin: 45px 0 15px;
+  line-height: 1.8;
+}
+.fl-error {
+  background: #fff0ef;
+  color: #8b201c;
+  padding: 10px;
+  border: 1px solid #c99088;
+}
+.fl-overlay {
+  position: fixed;
+  inset: 0;
+  background: #0008;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.fl-dialog {
+  background: white;
+  color: black;
+  border: 1px solid black;
+  width: 460px;
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+  box-shadow: 5px 5px 0 #0004;
+}
+.fl-dialog label {
+  display: block;
+  margin: 12px 0;
+}
+.fl-dialog input:not([type='color']):not([type='checkbox']) {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+}
+.fl-dialog input[type='color'] {
+  margin-left: 12px;
+}
+.fl-dialog label span {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+}
+.fl-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.fotolog :focus-visible {
+  outline: 2px solid #4678b8;
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  .fotolog {
+    padding: 10px;
+  }
+  .fl-header {
+    gap: 15px;
+  }
+  .fl-logo {
+    font-size: 27px !important;
+  }
+  .fl-logo span {
+    width: 34px;
+    height: 34px;
+    border-width: 8px;
+  }
+  .fl-search {
+    min-width: 160px;
+  }
+  .fl-account {
+    display: none;
+  }
+  .fl-header nav {
+    gap: 12px;
+  }
+  .fl-columns {
+    grid-template-columns: 85px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .fl-columns aside img,
+  .fl-no-photo {
+    width: 80px;
+    height: 65px;
+  }
+  .fl-friends {
+    grid-column: 1/-1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 25px;
+  }
+  .fl-friends h3,
+  .fl-friends > p {
+    width: 100%;
+  }
+  .fl-friends figure {
+    margin: 5px;
+  }
+  .fl-profile h1 {
+    font-size: 26px;
+  }
+  .fl-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fl-comment time {
+    float: none;
+    display: block;
+    margin-top: 5px;
+  }
+}
+.fl-caption h2 {
+  overflow-wrap: anywhere;
+}
+.fl-overlay[hidden] {
+  display: none;
+}
+.fl-preview-active {
+  padding-top: 90px;
+}
+.fl-preview-toolbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1001;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 24px;
+  padding: 12px 16px;
+  background: #fff;
+  color: #000;
+  border-bottom: 1px solid #999;
+  box-shadow: 0 2px 5px #0002;
+}
+.fl-preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.fl-preview-toolbar p {
+  flex-basis: 100%;
+  text-align: center;
+  color: #8b201c;
+}
+@media (max-width: 700px) {
+  .fl-preview-active {
+    padding-top: 125px;
+  }
+}
