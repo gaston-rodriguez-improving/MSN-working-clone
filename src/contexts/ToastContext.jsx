@@ -4,6 +4,7 @@ import sounds from '../imports/sounds';
 import { readSoundPreferences } from '../helpers/soundPreferences';
 
 const ToastContext = createContext(null);
+const isQuietPage = () => /^\/(?:admin|fotolog)(?:\/|$)/.test(window.location.pathname);
 
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState(null);
@@ -14,7 +15,7 @@ export function ToastProvider({ children }) {
     return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
   }, []);
   const playSound = useCallback((sound = sounds.newmessage, preference = 'messages') => {
-    if (!readSoundPreferences()[preference]) return;
+    if (isQuietPage() || !readSoundPreferences()[preference]) return;
     const audio = new Audio(sound);
     audio.play().catch(() => {});
   }, []);
