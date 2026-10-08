@@ -7,6 +7,41 @@ import '../features/fotolog/fotolog.css';
 
 const MAX_UPLOAD_SIZE = 500000;
 const COMPRESSED_TARGET_SIZE = 460000;
+const LANGUAGE_KEY = 'fotolog-language';
+const languageFromBrowser = () => (/^es(?:-|$)/i.test(navigator.language || '') ? 'es' : 'en');
+const translations = {
+  es: {
+    switchLanguage: 'English', search: 'Buscar', searchHint: 'Buscá a tus amigos en FOTOLOG', login: 'Iniciar sesión',
+    myFotolog: 'MI FOTOLOG ›', upload: 'SUBIR FOTO', archive: 'ARCHIVO', favorites: 'AMIGOS/FAVORITOS', account: 'MI CUENTA', manage: 'ADMINISTRAR LENI',
+    notice: 'Una foto por día. Un recuerdo para siempre.', loading: 'Cargando Fotolog…', about: 'Acerca de', myArchive: 'Mi archivo', welcome: 'Bienvenidos a mi Fotolog :)', addFavorite: 'Agregar a favoritos',
+    recent: 'Fotos Recientes', of: 'de', noPhotos: 'Todavía no hay fotos.', previous: '« Anterior', next: 'Siguiente »', camera: 'Cámara: Sin indicar', permalink: 'Permalink', allPhotos: 'Ver todas las fotos',
+    guestbook: 'Libro de visitas', firstSign: 'Sé el primero en firmar :)', leaveSignature: 'Dejá tu firma :)', signaturePlaceholder: 'Me pasé! ¿Te pasás? ♥', sign: 'Firmar', loginToSign: 'Iniciá sesión para dejar tu firma',
+    storyStarts: 'Tu historia empieza con una foto.', storySub: 'Un lugar para los amigos, los recuerdos y las firmas.', firstPhoto: 'Subí tu primera foto', photoArchive: 'Archivo de fotos', memories: 'recuerdos', searchFotologs: 'Buscar fotologs', results: 'resultados', noResults: 'No encontramos fotologs.', findFavorite: 'Buscá un Fotolog y agregalo a tus favoritos.', remove: 'Quitar', noPhoto: 'Sin foto', friendsStory: 'Los amigos hacen la historia.',
+    footer: 'Fotos, amigos y recuerdos.', todayPhoto: 'La foto de hoy', customize: 'Personalizá tu Fotolog', preview: 'Vista previa', unsaved: 'Cambios sin guardar', edit: 'Volver a editar', saveChanges: 'Guardar cambios', cancel: 'Cancelar',
+    photo: 'Foto', uploadHint: 'Hasta 500 KB · las fotos grandes se reducen automáticamente · GIF animado sin comprimir', title: 'Título', text: 'Texto', dailyLimit: 'Podés publicar una foto por día.', name: 'Nombre', description: 'Descripción', background: 'Fondo', links: 'Enlaces', banner: 'Banner', backgroundImage: 'Imagen de fondo', removeCurrent: 'Quitar imagen actual', imageHint: 'Hasta 500 KB · las imágenes grandes se reducen automáticamente.', save: 'Guardar', publish: 'Publicar',
+    addSuccess: '¡Agregado a tus favoritos!',
+  },
+  en: {
+    switchLanguage: 'Español', search: 'Search', searchHint: 'Find your friends on FOTOLOG', login: 'Log in',
+    myFotolog: 'MY FOTOLOG ›', upload: 'UPLOAD PHOTO', archive: 'ARCHIVE', favorites: 'FRIENDS/FAVORITES', account: 'MY ACCOUNT', manage: 'MANAGE LENI',
+    notice: 'One photo a day. A memory forever.', loading: 'Loading Fotolog…', about: 'About', myArchive: 'My archive', welcome: 'Welcome to my Fotolog :)', addFavorite: 'Add to favorites',
+    recent: 'Recent Photos', of: 'by', noPhotos: 'No photos yet.', previous: '« Previous', next: 'Next »', camera: 'Camera: Not specified', permalink: 'Permalink', allPhotos: 'View all photos',
+    guestbook: 'Guestbook', firstSign: 'Be the first to sign :)', leaveSignature: 'Leave your signature :)', signaturePlaceholder: 'I stopped by! Come visit ♥', sign: 'Sign', loginToSign: 'Log in to leave a signature',
+    storyStarts: 'Your story starts with a photo.', storySub: 'A place for friends, memories, and signatures.', firstPhoto: 'Upload your first photo', photoArchive: 'Photo archive', memories: 'memories', searchFotologs: 'Search Fotologs', results: 'results', noResults: 'No Fotologs found.', findFavorite: 'Find a Fotolog and add it to your favorites.', remove: 'Remove', noPhoto: 'No photo', friendsStory: 'Friends make history.',
+    footer: 'Photos, friends, and memories.', todayPhoto: 'Today’s photo', customize: 'Customize your Fotolog', preview: 'Preview', unsaved: 'Changes not saved', edit: 'Back to editing', saveChanges: 'Save changes', cancel: 'Cancel',
+    photo: 'Photo', uploadHint: 'Up to 500 KB · larger photos are automatically resized · animated GIFs must stay uncompressed', title: 'Title', text: 'Text', dailyLimit: 'You can post one photo per day.', name: 'Name', description: 'Description', background: 'Background', links: 'Links', banner: 'Banner', backgroundImage: 'Background image', removeCurrent: 'Remove current image', imageHint: 'Up to 500 KB · larger images are automatically resized.', save: 'Save', publish: 'Post',
+    addSuccess: 'Added to your favorites!',
+  },
+};
+
+function initialLanguage() {
+  try {
+    const saved = localStorage.getItem(LANGUAGE_KEY);
+    return saved === 'en' || saved === 'es' ? saved : languageFromBrowser();
+  } catch {
+    return languageFromBrowser();
+  }
+}
 
 function asDataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -77,10 +112,13 @@ async function customization(values, current) {
   }
   return { name: values.get('name'), description: values.get('description'), theme };
 }
-const date = (value) => value?.split('-').reverse().join('-');
+const date = (value, locale = 'es-AR') => (value ? new Date(`${value}T12:00:00`).toLocaleDateString(locale) : '');
 export default function FotologPage() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const [language, setLanguage] = useState(initialLanguage);
+  const t = translations[language];
+  const locale = language === 'es' ? 'es-AR' : 'en';
   const { userId } = useParams();
   const [params, setParams] = useSearchParams();
   const id = window.location.pathname === '/fotolog/leni' ? 'leni' : userId || user?.id;
@@ -109,6 +147,13 @@ export default function FotologPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    try { localStorage.setItem(LANGUAGE_KEY, language); } catch { /* Keep the in-memory choice if storage is unavailable. */ }
+    document.documentElement.lang = language;
+  }, [language]);
+  function toggleLanguage() {
+    setLanguage((current) => current === 'es' ? 'en' : 'es');
+  }
   const displayData = preview ? ownData : data;
   const canManage = !!data?.profile.canManage;
   const selected = displayData?.posts.find((p) => String(p.id) === params.get('photo')) || displayData?.posts[0];
@@ -214,16 +259,16 @@ export default function FotologPage() {
       }}
     >
       {preview && (
-        <div className="fl-preview-toolbar" ref={previewRef} tabIndex={-1} aria-label="Vista previa de tu Fotolog">
+        <div className="fl-preview-toolbar" ref={previewRef} tabIndex={-1} aria-label={`${t.preview} ${profileDisplayName}`}>
           <span>
-            <strong>Vista previa</strong> · Cambios sin guardar
+            <strong>{t.preview}</strong> · {t.unsaved}
           </span>
           <div className="fl-preview-controls">
             <button disabled={busy} onClick={() => setPreview(null)}>
-              Volver a editar
+              {t.edit}
             </button>
             <button disabled={busy} onClick={() => customizationForm.current?.requestSubmit()}>
-              {busy ? 'Guardando…' : 'Guardar cambios'}
+              {busy ? (language === 'es' ? 'Guardando…' : 'Saving…') : t.saveChanges}
             </button>
             <button
               disabled={busy}
@@ -233,7 +278,7 @@ export default function FotologPage() {
                 setError('');
               }}
             >
-              Cancelar
+              {t.cancel}
             </button>
           </div>
           {error && <p role="alert">{error}</p>}
@@ -259,23 +304,23 @@ export default function FotologPage() {
             <div>
               <input
                 aria-label="Buscar fotologs"
-                placeholder="Buscar"
+                placeholder={t.search}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 maxLength={80}
               />
               <button disabled={busy}>GO</button>
             </div>
-            <small>Buscá a tus amigos en FOTOLOG</small>
+            <small>{t.searchHint}</small>
           </form>
           <div className="fl-account">
-            {user ? <>Hi <b>{stripHtml(data?.viewerName || user.accountName || 'Mi Fotolog')}</b></> : <Link to="/login">Login</Link>}
+            {user ? <>{language === 'es' ? 'Hola' : 'Hi'} <b>{stripHtml(data?.viewerName || user.accountName || 'Mi Fotolog')}</b></> : <Link to="/login">{t.login}</Link>}
             <br />
-            <Link to="/">Messenger</Link> | Español
+            <Link to="/">Messenger</Link> | <button type="button" className="fl-link" onClick={toggleLanguage} aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}>{t.switchLanguage}</button>
           </div>
           <nav>
             <Link to="/fotolog" onClick={() => setView('photo')}>
-              MI FOTOLOG ›
+              {t.myFotolog}
             </Link>
             {(mine || canManage) && (
               <button
@@ -286,11 +331,11 @@ export default function FotologPage() {
                   setModal('upload');
                 }}
               >
-                SUBIR FOTO
+                {t.upload}
               </button>
             )}
-            <button onClick={() => setView('archive')}>ARCHIVO</button>
-            <button onClick={() => setView('friends')}>AMIGOS/FAVORITOS</button>
+            <button onClick={() => setView('archive')}>{t.archive}</button>
+            <button onClick={() => setView('friends')}>{t.favorites}</button>
             {(mine || canManage) && (
               <button
                 onClick={() => {
@@ -302,46 +347,46 @@ export default function FotologPage() {
                   });
                 }}
               >
-                {canManage && !mine ? 'ADMINISTRAR LENI' : 'MI CUENTA'}
+                {canManage && !mine ? t.manage : t.account}
               </button>
             )}
           </nav>
         </header>
-        <div className="fl-notice">Una foto por día. Un recuerdo para siempre.</div>
+        <div className="fl-notice">{t.notice}</div>
         {error && (
           <p className="fl-error" role="alert">
             {error}
           </p>
         )}
-        {loading && <p role="status">Cargando Fotolog…</p>}
+        {loading && <p role="status">{t.loading}</p>}
         {profile && (
           <>
             {theme.banner && <img className="fl-banner" src={theme.banner} alt={`Banner de ${profileDisplayName}`} />}
             <div className="fl-profile">
               <h1>{profileDisplayName}</h1>
-              <span>Acerca de {profileDisplayName} · </span>
+              <span>{t.about} {profileDisplayName} · </span>
               <button className="fl-link" onClick={() => setView('archive')}>
-                Mi archivo
+                {t.myArchive}
               </button>
-              <p>{profile.description || 'Bienvenidos a mi Fotolog :)'}</p>
+              <p>{profile.description || t.welcome}</p>
               {user && !mine && !canManage && (
                 <button
                   disabled={busy}
                   onClick={() =>
                     action(async () => {
                       await api.put(`/fotolog/favorites/${profile.user_id}`);
-                      setError('¡Agregado a tus favoritos!');
+                      setError(t.addSuccess);
                     })
                   }
                 >
-                  Agregar a favoritos
+                  {t.addFavorite}
                 </button>
               )}
             </div>
             <div className="fl-columns">
               <aside>
-                <h3>Fotos Recientes</h3>
-                <p>de {profileDisplayName}</p>
+                <h3>{t.recent}</h3>
+                <p>{t.of} {profileDisplayName}</p>
                 {displayData.posts.slice(0, 6).map((p) => (
                   <figure key={p.id}>
                     <button className="fl-thumbnail" onClick={() => select(p)}>
@@ -349,12 +394,12 @@ export default function FotologPage() {
                     </button>
                     <figcaption>
                       <button className="fl-link" onClick={() => select(p)}>
-                        {date(p.day)} »
+                        {date(p.day, locale)} »
                       </button>
                     </figcaption>
                   </figure>
                 ))}
-                {!displayData.posts.length && <p>Todavía no hay fotos.</p>}
+                {!displayData.posts.length && <p>{t.noPhotos}</p>}
               </aside>
               <main>
                 {view === 'photo' &&
@@ -365,19 +410,19 @@ export default function FotologPage() {
                           disabled={index >= displayData.posts.length - 1}
                           onClick={() => select(displayData.posts[index + 1])}
                         >
-                          « Anterior
+                          {t.previous}
                         </button>
                         <button disabled={index === 0} onClick={() => select(displayData.posts[index - 1])}>
-                          Siguiente »
+                          {t.next}
                         </button>
                       </div>
                       <img className="fl-photo" src={selected.image} alt={selected.title} />
                       <div className="fl-meta">
-                        {date(selected.day)} · Cámara: Sin indicar
+                        {new Date(`${selected.day}T12:00:00`).toLocaleDateString(locale)} · {t.camera}
                         <br />
-                        <Link to={`/fotolog/${profile.slug}?photo=${selected.id}`}>Permalink</Link> ·{' '}
+                        <Link to={`/fotolog/${profile.slug}?photo=${selected.id}`}>{t.permalink}</Link> ·{' '}
                         <button className="fl-link" onClick={() => setView('archive')}>
-                          Ver todas las fotos
+                          {t.allPhotos}
                         </button>
                       </div>
                       <article className="fl-caption">
@@ -385,15 +430,15 @@ export default function FotologPage() {
                         <p>{selected.body}</p>
                       </article>
                       <section className="fl-guestbook">
-                        <h3>Libro de visitas</h3>
+                        <h3>{t.guestbook}</h3>
                         {comments.map((c) => (
                           <div className="fl-comment" key={c.id}>
                             <Link to={`/fotolog/${c.slug}`}>{stripHtml(c.name)}</Link>
-                            <time>{new Date(c.created_at).toLocaleString('es-AR')}</time>
+                            <time>{new Date(c.created_at).toLocaleString(locale)}</time>
                             <p>{c.body}</p>
                           </div>
                         ))}
-                        {!comments.length && <p>Sé el primero en firmar :)</p>}
+                        {!comments.length && <p>{t.firstSign}</p>}
                         {user ? <form
                           onSubmit={(e) => {
                             e.preventDefault();
@@ -407,30 +452,30 @@ export default function FotologPage() {
                           }}
                         >
                           <label>
-                            Dejá tu firma :)
-                            <textarea name="body" required maxLength={2000} rows={3} placeholder="Me pasé! ¿Te pasás? ♥" />
+                            {t.leaveSignature}
+                            <textarea name="body" required maxLength={2000} rows={3} placeholder={t.signaturePlaceholder} />
                           </label>
-                          <button disabled={busy}>Firmar</button>
-                        </form> : <p><Link to="/login">Iniciá sesión para dejar tu firma</Link></p>}
+                          <button disabled={busy}>{t.sign}</button>
+                        </form> : <p><Link to="/login">{t.loginToSign}</Link></p>}
                       </section>
                     </>
                   ) : (
                     <div className="fl-empty">
-                      <h2>Tu historia empieza con una foto.</h2>
-                      <p>Un lugar para los amigos, los recuerdos y las firmas.</p>
-                      {mine && <button onClick={() => setModal('upload')}>Subí tu primera foto</button>}
+                      <h2>{t.storyStarts}</h2>
+                      <p>{t.storySub}</p>
+                      {(mine || canManage) && <button onClick={() => { setOwnProfile(data.profile); setOwnData(data); setModal('upload'); }}>{t.firstPhoto}</button>}
                     </div>
                   ))}
                 {view === 'archive' && (
                   <>
-                    <h2>Archivo de fotos</h2>
-                    <p>{displayData.posts.length} recuerdos</p>
+                    <h2>{t.photoArchive}</h2>
+                    <p>{displayData.posts.length} {t.memories}</p>
                     <div className="fl-grid">
                       {displayData.posts.map((p) => (
                         <button key={p.id} onClick={() => select(p)}>
                           <img src={p.image} alt={p.title} />
                           <span>
-                            {date(p.day)}
+                            {date(p.day, locale)}
                             <br />
                             {p.title}
                           </span>
@@ -441,8 +486,8 @@ export default function FotologPage() {
                 )}
                 {view === 'search' && (
                   <>
-                    <h2>Buscar fotologs</h2>
-                    <p>{results.length ? `${results.length} resultados` : 'No encontramos fotologs.'}</p>
+                    <h2>{t.searchFotologs}</h2>
+                    <p>{results.length ? `${results.length} ${t.results}` : t.noResults}</p>
                     {results.map((r) => (
                       <p key={r.id}>
                         <Link to={`/fotolog/${r.slug}`}>{stripHtml(r.name)}</Link>
@@ -452,8 +497,8 @@ export default function FotologPage() {
                 )}
                 {view === 'friends' && (
                   <>
-                    <h2>Amigos/Favoritos</h2>
-                    {!displayData.favorites.length && <p>Buscá un Fotolog y agregalo a tus favoritos.</p>}
+                    <h2>{t.favorites}</h2>
+                    {!displayData.favorites.length && <p>{t.findFavorite}</p>}
                     {displayData.favorites.map((f) => (
                       <p key={f.id}>
                         <Link to={`/fotolog/${f.slug}`}>{stripHtml(f.name)}</Link>{' '}
@@ -467,7 +512,7 @@ export default function FotologPage() {
                               })
                             }
                           >
-                            Quitar
+                            {t.remove}
                           </button>
                         )}
                       </p>
@@ -476,17 +521,17 @@ export default function FotologPage() {
                 )}
               </main>
               <aside className="fl-friends">
-                <h3>Amigos/Favoritos</h3>
-                <p>de {profileDisplayName}</p>
+                <h3>{t.favorites}</h3>
+                <p>{t.of} {profileDisplayName}</p>
                 {displayData.favorites.map((f) => (
                   <figure key={f.id}>
                     <Link to={`/fotolog/${f.slug}`}>
-                      {f.image ? <img src={f.image} alt={stripHtml(f.name)} /> : <div className="fl-no-photo">Sin foto</div>}
+                      {f.image ? <img src={f.image} alt={stripHtml(f.name)} /> : <div className="fl-no-photo">{t.noPhoto}</div>}
                       <figcaption>{stripHtml(f.name)}</figcaption>
                     </Link>
                   </figure>
                 ))}
-                {!displayData.favorites.length && <p>Los amigos hacen la historia.</p>}
+                {!displayData.favorites.length && <p>{t.friendsStory}</p>}
               </aside>
             </div>
           </>
@@ -494,7 +539,7 @@ export default function FotologPage() {
         <footer>
           FOTOLOG · <Link to="/">Throwback in time</Link>
           <br />
-          Fotos, amigos y recuerdos.
+          {t.footer}
         </footer>
       </div>
       {modal && (
@@ -512,7 +557,7 @@ export default function FotologPage() {
             }}
             aria-labelledby="fl-dialog-title"
           >
-            <h2 id="fl-dialog-title">{modal === 'upload' ? 'La foto de hoy' : 'Personalizá tu Fotolog'}</h2>
+            <h2 id="fl-dialog-title">{modal === 'upload' ? t.todayPhoto : t.customize}</h2>
             <form
               ref={customizationForm}
               onChange={() => setPreview(null)}
@@ -543,24 +588,24 @@ export default function FotologPage() {
               {modal === 'upload' ? (
                 <>
                   <label>
-                    Foto
+                    {t.photo}
                     <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required autoFocus />
                   </label>
-                  <small>Hasta 500 KB · las fotos grandes se reducen automáticamente · GIF animado sin comprimir</small>
+                  <small>{t.uploadHint}</small>
                   <label>
-                    Título
+                    {t.title}
                     <input name="title" required maxLength={160} />
                   </label>
                   <label>
-                    Texto
+                    {t.text}
                     <textarea name="body" rows={4} maxLength={10000} />
                   </label>
-                  <p>Podés publicar una foto por día.</p>
+                  <p>{t.dailyLimit}</p>
                 </>
               ) : (
                 <>
                   <label>
-                    Nombre
+                    {t.name}
                     <input
                       name="name"
                       defaultValue={stripHtml(ownProfile?.name || user?.accountName || 'Mi Fotolog')}
@@ -570,13 +615,13 @@ export default function FotologPage() {
                     />
                   </label>
                   <label>
-                    Descripción
+                    {t.description}
                     <textarea name="description" defaultValue={ownProfile?.description || ''} maxLength={1000} />
                   </label>
                   {[
-                    ['backgroundColor', 'Fondo', '#ffffff'],
+                    ['backgroundColor', t.background, '#ffffff'],
                     ['textColor', 'Texto', '#000000'],
-                    ['linkColor', 'Enlaces', '#000000'],
+                    ['linkColor', t.links, '#000000'],
                   ].map(([key, label, fallback]) => (
                     <label key={key}>
                       {label}
@@ -584,18 +629,18 @@ export default function FotologPage() {
                     </label>
                   ))}
                   {[
-                    ['banner', 'Banner'],
-                    ['background', 'Imagen de fondo'],
+                    ['banner', t.banner],
+                    ['background', t.backgroundImage],
                   ].map(([key, label]) => (
                     <label key={key}>
                       {label}
                       <input type="file" name={key} accept="image/jpeg,image/png,image/webp,image/gif" />
                       <span>
-                        <input type="checkbox" name={`remove-${key}`} /> Quitar imagen actual
+                        <input type="checkbox" name={`remove-${key}`} /> {t.removeCurrent}
                       </span>
                     </label>
                   ))}
-                  <small>Hasta 500 KB · las imágenes grandes se reducen automáticamente.</small>
+                  <small>{t.imageHint}</small>
                 </>
               )}
               {error && (
@@ -618,12 +663,12 @@ export default function FotologPage() {
                       });
                     }}
                   >
-                    Preview
+                    {t.preview}
                   </button>
                 )}
-                <button disabled={busy}>{busy ? 'Guardando…' : modal === 'upload' ? 'Publicar' : 'Guardar'}</button>
+                <button disabled={busy}>{busy ? (language === 'es' ? 'Guardando…' : 'Saving…') : modal === 'upload' ? t.publish : t.save}</button>
                 <button type="button" disabled={busy} onClick={() => setModal(null)}>
-                  Cancelar
+                  {t.cancel}
                 </button>
               </div>
             </form>
