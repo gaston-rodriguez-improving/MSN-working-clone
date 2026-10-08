@@ -1,46 +1,61 @@
+const { ensureFotologUrl } = require('./fotologUrls');
 const image = (value) =>
   typeof value === 'string' && value.length <= 700000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
+const fotologName = (user) => user.account_name || 'Mi Fotolog';
+const nameSql = "COALESCE(NULLIF(p.name, ''), NULLIF(u.account_name, ''), 'Mi Fotolog')";
 const color = (value) => /^#[a-fA-F0-9]{6}$/.test(value);
 module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, config }) {
   const exists = async (id) => Number.isSafeInteger(Number(id)) && (await getUser(Number(id)));
+  const withUrls = async (rows, key = 'id') =>
+    Promise.all(rows.map(async (row) => ({ ...row, slug: await ensureFotologUrl(db, row[key]) })));
   app.get(
     '/fotolog/users',
     auth,
     asyncRoute(async (req, res) => {
       const result = await db.query(
-        `SELECT u.id, u.username, COALESCE(p.name, u.username) AS name,
+        `SELECT u.id, ${nameSql} AS name,
       (SELECT image FROM fotolog_posts WHERE user_id=u.id ORDER BY day DESC LIMIT 1) AS image
-      FROM users u LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE company_id=$1 AND event_id=$2 AND u.username ILIKE $3 ORDER BY u.username LIMIT 40`,
+      FROM users u LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE company_id=$1 AND event_id=$2 AND ${nameSql} ILIKE $3 ORDER BY name, u.id LIMIT 40`,
         [config.companyId, config.eventId, `%${String(req.query.search || '').slice(0, 80)}%`]
       );
-      res.json(result.rows);
+      res.json(await withUrls(result.rows));
     })
   );
   app.get(
     '/fotolog/profiles/:id',
     auth,
     asyncRoute(async (req, res) => {
-      const user = await exists(req.params.id);
+      const ref = req.params.id;
+      const user = /^\d+$/.test(ref)
+        ? await exists(ref)
+        : (
+            await db.query(
+              'SELECT u.* FROM fotolog_urls f JOIN users u ON u.id=f.user_id WHERE f.slug=$1 AND u.company_id=$2 AND u.event_id=$3',
+              [ref, config.companyId, config.eventId]
+            )
+          ).rows[0];
       if (!user) return res.status(404).json({ error: 'Fotolog no encontrado' });
-      const [profile, posts, favorites] = await Promise.all([
+      const [profile, posts, favorites, viewer] = await Promise.all([
         db.query('SELECT * FROM fotolog_profiles WHERE user_id=$1', [user.id]),
         db.query('SELECT id, image, title, body, day::text FROM fotolog_posts WHERE user_id=$1 ORDER BY day DESC', [user.id]),
         db.query(
-          `SELECT u.id, u.username, (SELECT image FROM fotolog_posts WHERE user_id=u.id ORDER BY day DESC LIMIT 1) AS image FROM fotolog_favorites f JOIN users u ON u.id=f.favorite_id WHERE f.user_id=$1 ORDER BY f.created_at DESC`,
+          `SELECT u.id, ${nameSql} AS name, (SELECT image FROM fotolog_posts WHERE user_id=u.id ORDER BY day DESC LIMIT 1) AS image FROM fotolog_favorites f JOIN users u ON u.id=f.favorite_id LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE f.user_id=$1 ORDER BY f.created_at DESC`,
           [user.id]
         ),
+        db.query('SELECT name FROM fotolog_profiles WHERE user_id=$1', [req.user.id]),
       ]);
       res.json({
+        viewerName: viewer.rows[0]?.name || fotologName(req.user),
         profile: {
           user_id: user.id,
-          name: user.username,
+          name: fotologName(user),
           description: '',
           theme: {},
           ...profile.rows[0],
-          username: user.username,
+          slug: await ensureFotologUrl(db, user.id),
         },
         posts: posts.rows,
-        favorites: favorites.rows,
+        favorites: await withUrls(favorites.rows),
       });
     })
   );
@@ -73,7 +88,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
         'INSERT INTO fotolog_profiles(user_id,name,description,theme) VALUES($1,$2,$3,$4) ON CONFLICT(user_id) DO UPDATE SET name=$2,description=$3,theme=$4',
         [req.user.id, name.trim(), description, clean]
       );
-      res.json({ ok: true });
+      res.json({ ok: true, slug: await ensureFotologUrl(db, req.user.id) });
     })
   );
   app.post(
@@ -107,12 +122,15 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
       const p = await post(req.params.id);
       if (!p || !(await exists(p.user_id))) return res.status(404).json({ error: 'Foto no encontrada' });
       res.json(
-        (
-          await db.query(
-            'SELECT c.id,c.body,c.created_at,u.id AS user_id,u.username FROM fotolog_comments c JOIN users u ON u.id=c.user_id WHERE c.post_id=$1 ORDER BY c.created_at,c.id',
-            [req.params.id]
-          )
-        ).rows
+        await withUrls(
+          (
+            await db.query(
+              `SELECT c.id,c.body,c.created_at,u.id AS user_id,${nameSql} AS name FROM fotolog_comments c JOIN users u ON u.id=c.user_id LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE c.post_id=$1 ORDER BY c.created_at,c.id`,
+              [req.params.id]
+            )
+          ).rows,
+          'user_id'
+        )
       );
     })
   );

@@ -46,6 +46,25 @@ test(
       return { status: r.status, body: await r.json() };
     };
     assert.equal((await request(`/profiles/${other.id}`)).status, 404);
+    await db.query('UPDATE users SET account_name=$1 WHERE id=$2', ['Ana Pérez', bob.id]);
+    assert.equal((await request(`/profiles/${bob.id}`)).body.profile.name, 'Ana Pérez');
+    const bobSlug = (await request(`/profiles/${bob.id}`)).body.profile.slug;
+    assert.ok(bobSlug.startsWith('ana-perez'));
+    assert.equal((await request(`/profiles/${bobSlug}`)).body.profile.user_id, bob.id);
+    await db.query('UPDATE users SET account_name=$1 WHERE id=$2', ['Ana Pérez', alice.id]);
+    const aliceSlug = (await request(`/profiles/${alice.id}`)).body.profile.slug;
+    assert.notEqual(aliceSlug, bobSlug);
+    assert.equal((await request(`/profiles/${aliceSlug}`)).body.profile.user_id, alice.id);
+    await db.query('UPDATE users SET account_name=$1 WHERE id=$2', ['Unrelated Tenant', other.id]);
+    const { ensureFotologUrl } = require('./fotologUrls');
+    const foreignSlug = await ensureFotologUrl(db, other.id);
+    assert.equal((await request(`/profiles/${foreignSlug}`)).status, 404);
+
+    await db.query('UPDATE users SET username=$1 WHERE id=$2', ['MSN nickname ' + randomUUID(), bob.id]);
+    assert.equal((await request(`/profiles/${bob.id}`)).body.profile.name, 'Ana Pérez');
+    assert.equal((await request(`/profiles/${alice.id}`, bob)).body.viewerName, 'Ana Pérez');
+    assert.ok((await request('/users?search=Ana%20Pérez')).body.some((user) => user.id === bob.id));
+
     assert.equal(
       (
         await request('/profile', alice, 'PUT', {
@@ -69,6 +88,7 @@ test(
     const id = posts.find((p) => p.status === 201).body.id;
     assert.equal((await request(`/posts/${id}/comments`, bob, 'POST', { body: 'Me pasé!' })).status, 201);
     assert.equal((await request(`/posts/${id}/comments`)).body[0].body, 'Me pasé!');
+    assert.equal((await request(`/posts/${id}/comments`)).body[0].name, 'Ana Pérez');
     const foreignPost = (
       await db.query('INSERT INTO fotolog_posts(user_id,image,title,day) VALUES($1,$2,$3,CURRENT_DATE) RETURNING id', [
         other.id,
@@ -82,8 +102,17 @@ test(
     assert.equal((await request(`/favorites/${bob.id}`, alice, 'PUT')).status, 200);
     const profile = (await request(`/profiles/${alice.id}`)).body;
     assert.equal(profile.profile.name, 'Retro');
+    assert.equal((await request(`/profiles/${aliceSlug}`)).body.profile.slug, profile.profile.slug);
+    assert.equal((await request(`/profiles/${aliceSlug}`)).body.profile.user_id, alice.id);
     assert.equal(profile.posts.length, 1);
     assert.equal(profile.favorites[0].id, bob.id);
+    assert.equal(profile.favorites[0].name, 'Ana Pérez');
+    await db.query('UPDATE users SET username=$1,account_name=$2 WHERE id=$3', [
+      'New MSN ' + randomUUID(),
+      'Updated Mail Name',
+      alice.id,
+    ]);
+    assert.equal((await request(`/profiles/${alice.id}`)).body.profile.name, 'Retro');
     assert.deepEqual((await request(`/profiles/${bob.id}`)).body.profile.theme, {});
     assert.equal((await request(`/favorites/${bob.id}`, alice, 'DELETE')).status, 200);
     assert.equal((await request(`/profiles/${alice.id}`)).body.favorites.length, 0);

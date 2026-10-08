@@ -173,3 +173,16 @@ CREATE TABLE IF NOT EXISTS fotolog_favorites (
   PRIMARY KEY(user_id,favorite_id),
   CHECK(user_id <> favorite_id)
 );
+
+-- Preserve the verified mail account name separately from the MSN nickname.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS fotolog_urls (
+  slug TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS fotolog_addresses (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL REFERENCES fotolog_urls(slug) ON DELETE CASCADE
+);

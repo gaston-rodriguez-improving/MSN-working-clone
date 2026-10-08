@@ -32,8 +32,9 @@ export default function FotologPage() {
   const { userId } = useParams();
   const [params, setParams] = useSearchParams();
   const id = userId || user.id;
-  const mine = String(id) === String(user.id);
+
   const [data, setData] = useState(null);
+  const mine = data?.profile.user_id === user.id;
   const [comments, setComments] = useState([]);
   const [view, setView] = useState('photo');
   const [modal, setModal] = useState(null);
@@ -59,6 +60,11 @@ export default function FotologPage() {
   const displayData = preview ? ownData : data;
   const selected = displayData?.posts.find((p) => String(p.id) === params.get('photo')) || displayData?.posts[0];
   const selectedId = selected?.id;
+  useEffect(() => {
+    if (data?.reference === String(id) && data?.profile.slug && userId !== data.profile.slug) {
+      navigate(`/fotolog/${data.profile.slug}${window.location.search}`, { replace: true });
+    }
+  }, [data?.profile.slug, data?.reference, id, userId, navigate]);
   const index = displayData?.posts.indexOf(selected) ?? 0;
   useEffect(() => {
     const previous = document.title;
@@ -87,7 +93,7 @@ export default function FotologPage() {
   }, []);
   async function load() {
     const response = await api.get(`/fotolog/profiles/${id}`);
-    setData(response.data);
+    setData({ ...response.data, reference: String(id) });
   }
   useEffect(() => {
     let active = true;
@@ -98,7 +104,7 @@ export default function FotologPage() {
     api
       .get(`/fotolog/profiles/${id}`)
       .then((r) => {
-        if (active) setData(r.data);
+        if (active) setData({ ...r.data, reference: String(id) });
       })
       .catch((e) => {
         if (active) setError(e.response?.data?.error || 'No se pudo cargar el Fotolog');
@@ -208,7 +214,7 @@ export default function FotologPage() {
             <small>Buscá a tus amigos en FOTOLOG</small>
           </form>
           <div className="fl-account">
-            Hi <b>{stripHtml(user.username)}</b>
+            Hi <b>{stripHtml(data?.viewerName || user.accountName || 'Mi Fotolog')}</b>
             <br />
             <Link to="/">Messenger</Link> | Español
           </div>
@@ -252,7 +258,7 @@ export default function FotologPage() {
             {theme.banner && <img className="fl-banner" src={theme.banner} alt={`Banner de ${profile.name}`} />}
             <div className="fl-profile">
               <h1>{stripHtml(profile.name)}</h1>
-              <span>Acerca de {stripHtml(profile.username)} · </span>
+              <span>Acerca de {stripHtml(profile.name)} · </span>
               <button className="fl-link" onClick={() => setView('archive')}>
                 Mi archivo
               </button>
@@ -262,7 +268,7 @@ export default function FotologPage() {
                   disabled={busy}
                   onClick={() =>
                     action(async () => {
-                      await api.put(`/fotolog/favorites/${id}`);
+                      await api.put(`/fotolog/favorites/${profile.user_id}`);
                       setError('¡Agregado a tus favoritos!');
                     })
                   }
@@ -274,7 +280,7 @@ export default function FotologPage() {
             <div className="fl-columns">
               <aside>
                 <h3>Fotos Recientes</h3>
-                <p>de {stripHtml(profile.username)}</p>
+                <p>de {stripHtml(profile.name)}</p>
                 {displayData.posts.slice(0, 6).map((p) => (
                   <figure key={p.id}>
                     <button className="fl-thumbnail" onClick={() => select(p)}>
@@ -308,7 +314,7 @@ export default function FotologPage() {
                       <div className="fl-meta">
                         {date(selected.day)} · Cámara: Sin indicar
                         <br />
-                        <Link to={`/fotolog/${id}?photo=${selected.id}`}>Permalink</Link> ·{' '}
+                        <Link to={`/fotolog/${profile.slug}?photo=${selected.id}`}>Permalink</Link> ·{' '}
                         <button className="fl-link" onClick={() => setView('archive')}>
                           Ver todas las fotos
                         </button>
@@ -321,7 +327,7 @@ export default function FotologPage() {
                         <h3>Libro de visitas</h3>
                         {comments.map((c) => (
                           <div className="fl-comment" key={c.id}>
-                            <Link to={`/fotolog/${c.user_id}`}>{stripHtml(c.username)}</Link>
+                            <Link to={`/fotolog/${c.slug}`}>{stripHtml(c.name)}</Link>
                             <time>{new Date(c.created_at).toLocaleString('es-AR')}</time>
                             <p>{c.body}</p>
                           </div>
@@ -378,7 +384,7 @@ export default function FotologPage() {
                     <p>{results.length ? `${results.length} resultados` : 'No encontramos fotologs.'}</p>
                     {results.map((r) => (
                       <p key={r.id}>
-                        <Link to={`/fotolog/${r.id}`}>{stripHtml(r.username)}</Link>
+                        <Link to={`/fotolog/${r.slug}`}>{stripHtml(r.name)}</Link>
                       </p>
                     ))}
                   </>
@@ -389,7 +395,7 @@ export default function FotologPage() {
                     {!displayData.favorites.length && <p>Buscá un Fotolog y agregalo a tus favoritos.</p>}
                     {displayData.favorites.map((f) => (
                       <p key={f.id}>
-                        <Link to={`/fotolog/${f.id}`}>{stripHtml(f.username)}</Link>{' '}
+                        <Link to={`/fotolog/${f.slug}`}>{stripHtml(f.name)}</Link>{' '}
                         {mine && (
                           <button
                             disabled={busy}
@@ -410,12 +416,12 @@ export default function FotologPage() {
               </main>
               <aside className="fl-friends">
                 <h3>Amigos/Favoritos</h3>
-                <p>de {stripHtml(profile.username)}</p>
+                <p>de {stripHtml(profile.name)}</p>
                 {displayData.favorites.map((f) => (
                   <figure key={f.id}>
-                    <Link to={`/fotolog/${f.id}`}>
-                      {f.image ? <img src={f.image} alt={stripHtml(f.username)} /> : <div className="fl-no-photo">Sin foto</div>}
-                      <figcaption>{stripHtml(f.username)}</figcaption>
+                    <Link to={`/fotolog/${f.slug}`}>
+                      {f.image ? <img src={f.image} alt={stripHtml(f.name)} /> : <div className="fl-no-photo">Sin foto</div>}
+                      <figcaption>{stripHtml(f.name)}</figcaption>
                     </Link>
                   </figure>
                 ))}
@@ -494,7 +500,7 @@ export default function FotologPage() {
                     Nombre
                     <input
                       name="name"
-                      defaultValue={stripHtml(ownProfile?.name || user.username)}
+                      defaultValue={stripHtml(ownProfile?.name || user.accountName || 'Mi Fotolog')}
                       required
                       maxLength={80}
                       autoFocus

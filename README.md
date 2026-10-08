@@ -65,8 +65,10 @@ If you’d like to contribute to the project or provide feedback, feel free to r
 
 ### Fotolog
 
-`/fotolog` opens the signed-in user's retro photo journal; `/fotolog/:userId`
-opens another account in the same company/event. Includes a daily photo (one
+`/fotolog` redirects to the signed-in user's named URL, such as `/fotolog/ana-perez`.
+Names are normalized and duplicate URLs receive a numeric suffix. Profile renames
+create a new URL while previous URLs and numeric links keep working. Accounts are
+still scoped to the same company/event. Includes a daily photo (one
 per calendar day in `ADMIN_TIMEZONE`), photo archive/permalinks, guestbook
 comments, user search, favorites, and per-profile colors/banner/background.
 Uploads accept JPEG, PNG, WebP and GIF files up to 500 KB. Images and profile
