@@ -83,10 +83,10 @@ export default function FotologPage() {
   const { user } = useContext(AuthContext);
   const { userId } = useParams();
   const [params, setParams] = useSearchParams();
-  const id = userId || user.id;
+  const id = window.location.pathname === '/fotolog/leni' ? 'leni' : userId || user?.id;
 
   const [data, setData] = useState(null);
-  const mine = data?.profile.user_id === user.id;
+  const mine = !!user && data?.profile.user_id === user.id;
   const [comments, setComments] = useState([]);
   const [view, setView] = useState('photo');
   const [modal, setModal] = useState(null);
@@ -168,7 +168,7 @@ export default function FotologPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, user?.id]);
   useEffect(() => {
     let active = true;
     setComments([]);
@@ -249,6 +249,7 @@ export default function FotologPage() {
             className="fl-search"
             onSubmit={(e) => {
               e.preventDefault();
+              if (!user) { navigate('/login'); return; }
               action(async () => {
                 setResults((await api.get('/fotolog/users', { params: { search: query } })).data);
                 setView('search');
@@ -268,7 +269,7 @@ export default function FotologPage() {
             <small>Buscá a tus amigos en FOTOLOG</small>
           </form>
           <div className="fl-account">
-            Hi <b>{stripHtml(data?.viewerName || user.accountName || 'Mi Fotolog')}</b>
+            {user ? <>Hi <b>{stripHtml(data?.viewerName || user.accountName || 'Mi Fotolog')}</b></> : <Link to="/login">Login</Link>}
             <br />
             <Link to="/">Messenger</Link> | Español
           </div>
@@ -294,7 +295,7 @@ export default function FotologPage() {
               <button
                 onClick={() => {
                   action(async () => {
-                    const own = canManage && !mine ? data : (await api.get(`/fotolog/profiles/${user.id}`)).data;
+                    const own = canManage && !mine ? data : (await api.get(`/fotolog/profiles/${user?.id}`)).data;
                     setOwnProfile(own.profile);
                     setOwnData(own);
                     setModal('custom');
@@ -323,7 +324,7 @@ export default function FotologPage() {
                 Mi archivo
               </button>
               <p>{profile.description || 'Bienvenidos a mi Fotolog :)'}</p>
-              {!mine && !canManage && (
+              {user && !mine && !canManage && (
                 <button
                   disabled={busy}
                   onClick={() =>
@@ -393,7 +394,7 @@ export default function FotologPage() {
                           </div>
                         ))}
                         {!comments.length && <p>Sé el primero en firmar :)</p>}
-                        <form
+                        {user ? <form
                           onSubmit={(e) => {
                             e.preventDefault();
                             const form = e.currentTarget;
@@ -410,7 +411,7 @@ export default function FotologPage() {
                             <textarea name="body" required maxLength={2000} rows={3} placeholder="Me pasé! ¿Te pasás? ♥" />
                           </label>
                           <button disabled={busy}>Firmar</button>
-                        </form>
+                        </form> : <p><Link to="/login">Iniciá sesión para dejar tu firma</Link></p>}
                       </section>
                     </>
                   ) : (
@@ -527,7 +528,7 @@ export default function FotologPage() {
                       body: values.get('body'),
                     });
                   } else {
-                    const targetId = ownProfile?.user_id || user.id;
+                    const targetId = ownProfile?.user_id || user?.id;
                     const current = ownProfile || (await api.get(`/fotolog/profiles/${targetId}`)).data.profile;
                     await api.put('/fotolog/profile', { ...(await customization(values, current)), userId: targetId });
                   }
@@ -562,7 +563,7 @@ export default function FotologPage() {
                     Nombre
                     <input
                       name="name"
-                      defaultValue={stripHtml(ownProfile?.name || user.accountName || 'Mi Fotolog')}
+                      defaultValue={stripHtml(ownProfile?.name || user?.accountName || 'Mi Fotolog')}
                       required
                       maxLength={80}
                       autoFocus

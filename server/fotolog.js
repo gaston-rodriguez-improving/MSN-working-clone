@@ -23,7 +23,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
   );
   app.get(
     '/fotolog/profiles/:id',
-    auth,
+    (req, res, next) => req.params.id === 'leni' && !req.get('authorization') ? next() : auth(req, res, next),
     asyncRoute(async (req, res) => {
       const ref = req.params.id;
       const user = /^\d+$/.test(ref)
@@ -34,7 +34,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
               [ref, config.companyId, config.eventId]
             )
           ).rows[0];
-      if (!user) return res.status(404).json({ error: 'Fotolog no encontrado' });
+      if (!user || (!req.user && (!user.is_managed_profile || user.email !== 'fotolog-leni@system.invalid'))) return res.status(404).json({ error: 'Fotolog no encontrado' });
       const [profile, posts, favorites, viewer] = await Promise.all([
         db.query('SELECT * FROM fotolog_profiles WHERE user_id=$1', [user.id]),
         db.query('SELECT id, image, title, body, day::text FROM fotolog_posts WHERE user_id=$1 ORDER BY day DESC', [user.id]),
@@ -42,9 +42,9 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
           `SELECT u.id, ${nameSql} AS name, (SELECT image FROM fotolog_posts WHERE user_id=u.id ORDER BY day DESC LIMIT 1) AS image FROM fotolog_favorites f JOIN users u ON u.id=f.favorite_id LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE f.user_id=$1 ORDER BY f.created_at DESC`,
           [user.id]
         ),
-        db.query('SELECT name FROM fotolog_profiles WHERE user_id=$1', [req.user.id]),
+        req.user ? db.query('SELECT name FROM fotolog_profiles WHERE user_id=$1', [req.user.id]) : Promise.resolve({ rows: [] }),
       ]);
-      const canManage = user.id === req.user.id || (user.is_managed_profile && await isAdminRequest(req));
+      const canManage = !!req.user && (user.id === req.user.id || (user.is_managed_profile && await isAdminRequest(req)));
       res.json({
         viewerName: viewer.rows[0]?.name || fotologName(req.user),
         profile: {
@@ -57,7 +57,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
           canManage,
         },
         posts: posts.rows,
-        favorites: await withUrls(favorites.rows),
+        favorites: req.user ? await withUrls(favorites.rows) : [],
       });
     })
   );
@@ -129,7 +129,13 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
     Number.isSafeInteger(Number(id)) && (await db.query('SELECT user_id FROM fotolog_posts WHERE id=$1', [id])).rows[0];
   app.get(
     '/fotolog/posts/:id/comments',
-    auth,
+    asyncRoute(async (req, res, next) => {
+      if (req.get('authorization')) return auth(req, res, next);
+      const p = await post(req.params.id);
+      const owner = p && await exists(p.user_id);
+      if (owner?.is_managed_profile && owner.email === 'fotolog-leni@system.invalid') return next();
+      return auth(req, res, next);
+    }),
     asyncRoute(async (req, res) => {
       const p = await post(req.params.id);
       if (!p || !(await exists(p.user_id))) return res.status(404).json({ error: 'Foto no encontrada' });

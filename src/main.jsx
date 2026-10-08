@@ -32,6 +32,7 @@ const Main = () => {
                   <Route path="/chat/:id" element={<PrivateRoute element={ChatPage} />} />
                   <Route path="/admin" element={<PrivateRoute element={AdminPage} />} />
                   {winampEnabled && <Route path="/winamp" element={<Suspense fallback={<p role="status">Loading Winamp…</p>}><PrivateRoute element={WinampPage} /></Suspense>} />}
+                  <Route path="/fotolog/leni" element={<Suspense fallback={<p role="status">Cargando Fotolog…</p>}><FotologPage /></Suspense>} />
                   <Route path="/fotolog/:userId?" element={<Suspense fallback={<p role="status">Cargando Fotolog…</p>}><PrivateRoute element={FotologPage} /></Suspense>} />
                   <Route path="/discordAuth" element={<DiscordAuthHandler />} />
                 </Routes>
