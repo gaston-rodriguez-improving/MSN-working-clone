@@ -31,7 +31,7 @@
 .winamp-media-window.is-effects .winamp-youtube-frame { position: absolute; visibility: hidden; pointer-events: none; width: 100%; }
 .winamp-attribution { padding: 6px 8px; background: #14181a; color: #93a3a6; font: 10px Tahoma,Verdana,sans-serif; }
 .winamp-attribution a { color: #a8d7dc; }
-.winamp-desktop-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 9px 16px; color: #a8bfbd; font-size: 11px; }
+.winamp-desktop-controls { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; max-width: calc(100vw - 128px); color: #a8bfbd; font-size: 11px; text-align: right; }
 .winamp-desktop-controls button { border: 1px solid #68797c; color: #b9c7c9; padding: 3px 9px; background: linear-gradient(#323b3d,#1c2224); font: 11px Tahoma,Verdana,sans-serif; cursor: pointer; }
 .winamp-desktop-controls button:disabled { opacity: .6; cursor: wait; }
 .winamp-share-toggle { display: inline-flex; gap: 7px; align-items: center; font: 11px Tahoma,Verdana,sans-serif; }

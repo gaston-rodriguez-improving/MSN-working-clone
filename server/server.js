@@ -461,6 +461,7 @@ app.get('/messages/chat/:chatId', auth, asyncRoute(async (req, res) => {
   res.json({ messages, hasMore, chatId: id });
 }));
 const sockets = new Map();
+const presenceGrace = require('./presenceGrace').createPresenceGrace();
 function broadcast(userIds, type, payload) { for (const userId of userIds) for (const socket of (sockets.get(userId) || [])) if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, payload })); }
 async function updateListening(userId, body, socketId) {
   const action = body?.action; const sessionId = String(body?.sessionId || ''); const sequence = Number(body?.sequence);
@@ -570,12 +571,24 @@ wss.on('connection', (socket, req) => {
       for (const [sessionId, sequence] of socketSessions) await updateListening(user.id, { action: 'clear', sessionId, sequence: sequence + 1 }, socketId);
       socketSessions.clear();
     }).catch(() => {});
-    sockets.get(user.id)?.delete(socket); if (!sockets.get(user.id)?.size) { sockets.delete(user.id); db.query("UPDATE users SET status = 'offline' WHERE id = $1", [user.id]).then(async () => broadcastUser('user_status_update', await getUser(user.id))).catch(() => {}); }
+    sockets.get(user.id)?.delete(socket); if (!sockets.get(user.id)?.size) {
+      sockets.delete(user.id);
+      presenceGrace.disconnect(user.id, () => {
+        if (sockets.get(user.id)?.size) return;
+        db.query("UPDATE users SET status = 'offline' WHERE id = $1", [user.id]).then(async () => broadcastUser('user_status_update', await getUser(user.id))).catch(() => {});
+      });
+    }
   });
   (async () => {
     const token = new URL(req.url, `http://${req.headers.host}`).searchParams.get('token'); const claims = jwt.verify(token, config.jwtSecret); if (claims.companyId !== config.companyId || claims.eventId !== config.eventId) throw new Error(); user = await getUser(Number(claims.sub)); if (!user || socket.readyState !== WebSocket.OPEN) throw new Error();
+    const reconnecting = presenceGrace.reconnect(user.id);
+    const alreadyConnected = Boolean(sockets.get(user.id)?.size);
     if (!sockets.has(user.id)) sockets.set(user.id, new Set()); sockets.get(user.id).add(socket);
-    await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]); recordPresence([user.id]).catch(() => {}); await broadcastUser('user_status_update', await getUser(user.id));
+    if (!reconnecting && !alreadyConnected) {
+      await db.query("UPDATE users SET status = 'online' WHERE id = $1", [user.id]);
+      await broadcastUser('user_status_update', await getUser(user.id));
+    }
+    recordPresence([user.id]).catch(() => {});
     await pushListeningSnapshot(user.id, socket);
     ready = true;
     socket.send(JSON.stringify({ type: 'socket_ready', payload: {} }));

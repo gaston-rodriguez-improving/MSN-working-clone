@@ -300,7 +300,7 @@ export function ChatProvider({ children }) {
         }
         if (type === 'user_status_update') {
           const contact = contactsRef.current.find((item) => item.id === payload.id);
-          if (contact && contact.status !== 'online' && payload.status === 'online') playSound(sounds.online, 'contactsOnline');
+          if (payload.id !== user.id && contact?.status === 'offline' && payload.status === 'online') playSound(sounds.online, 'contactsOnline');
           setContacts((prev) => prev.map((item) => item.id === payload.id ? { ...item, ...payload, name: payload.username || item.name, message: payload.bio !== undefined ? payload.bio : item.message, image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || item.image } : item));
         }
         if (type === 'user_bio_update' || type === 'user_avatar_update' || type === 'user_username_update') setContacts((prev) => prev.map((contact) => contact.id === payload.id ? { ...contact, ...payload, name: payload.username || contact.name, message: payload.bio !== undefined ? payload.bio : contact.message, image: payload.avatar === 'default' ? '/assets/usertiles/default.png' : payload.avatar || contact.image } : contact));
