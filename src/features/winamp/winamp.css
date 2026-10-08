@@ -68,7 +68,7 @@
 }
 
 .winamp-media-window[hidden] { display: none; }
-.winamp-desktop-shortcut { position: absolute; left: 24px; bottom: 18px; z-index: 1; width: 76px; padding: 5px; border: 1px solid transparent; background: transparent; color: white; font: 12px Tahoma, sans-serif; cursor: pointer; text-shadow: 1px 1px #000; }
+.winamp-desktop-shortcut { position: absolute; left: 24px; bottom: 82px; z-index: 1; width: 76px; padding: 5px; border: 1px solid transparent; background: transparent; color: white; font: 12px Tahoma, sans-serif; cursor: pointer; text-shadow: 1px 1px #000; }
 .winamp-desktop-shortcut img { display: block; width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; margin: 0 auto 4px; }
 .winamp-desktop-shortcut:focus-visible, .winamp-desktop-shortcut:hover { background: #224c7870; border: 1px dotted #a4bdde; outline: none; }
 

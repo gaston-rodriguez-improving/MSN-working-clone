@@ -13,6 +13,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { DiscordAuthHandler } from './utils/discordAuth';
 import UpdateBanner from './components/UpdateBanner';
+import AppShortcuts from './components/AppShortcuts';
 import { winampEnabled } from './features/musicConfig';
 
 const FotologPage = lazy(() => import('./pages/FotologPage'));
@@ -36,6 +37,7 @@ const Main = () => {
                   <Route path="/fotolog/:userId?" element={<Suspense fallback={<p role="status">Cargando Fotolog…</p>}><PrivateRoute element={FotologPage} /></Suspense>} />
                   <Route path="/discordAuth" element={<DiscordAuthHandler />} />
                 </Routes>
+                <AppShortcuts />
               </Router>
               <UpdateBanner />
             </EmoticonProvider>

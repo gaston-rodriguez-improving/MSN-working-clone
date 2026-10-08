@@ -119,12 +119,21 @@ export default function FotologPage() {
   const [language, setLanguage] = useState(initialLanguage);
   const t = translations[language];
   const locale = language === 'es' ? 'es-AR' : 'en';
+  const [actingAccount, setActingAccount] = useState('personal');
+  const requestOptions = { headers: { 'X-Fotolog-Account': actingAccount } };
+  const fotologApi = {
+    get: (url, options = {}) => api.get(url, { ...options, headers: { ...options.headers, ...requestOptions.headers } }),
+    post: (url, body) => api.post(url, body, requestOptions),
+    put: (url, body) => api.put(url, body, requestOptions),
+    delete: (url) => api.delete(url, requestOptions),
+  };
+  useEffect(() => { setActingAccount('personal'); }, [user?.id]);
   const { userId } = useParams();
   const [params, setParams] = useSearchParams();
-  const id = window.location.pathname === '/fotolog/leni' ? 'leni' : userId || user?.id;
+  const id = window.location.pathname === '/fotolog/leni' ? 'leni' : userId || (actingAccount === 'leni' ? 'leni' : user?.id);
 
   const [data, setData] = useState(null);
-  const mine = !!user && data?.profile.user_id === user.id;
+  const mine = !!user && data?.profile.user_id === (data?.actorId || user.id);
   const [comments, setComments] = useState([]);
   const [view, setView] = useState('photo');
   const [modal, setModal] = useState(null);
@@ -190,7 +199,7 @@ export default function FotologPage() {
     };
   }, []);
   async function load() {
-    const response = await api.get(`/fotolog/profiles/${id}`);
+    const response = await fotologApi.get(`/fotolog/profiles/${id}`);
     setData({ ...response.data, reference: String(id) });
   }
   useEffect(() => {
@@ -199,7 +208,7 @@ export default function FotologPage() {
     setData(null);
     setView('photo');
     setError('');
-    api
+    fotologApi
       .get(`/fotolog/profiles/${id}`)
       .then((r) => {
         if (active) setData({ ...r.data, reference: String(id) });
@@ -213,12 +222,12 @@ export default function FotologPage() {
     return () => {
       active = false;
     };
-  }, [id, user?.id]);
+  }, [id, user?.id, actingAccount]);
   useEffect(() => {
     let active = true;
     setComments([]);
     if (selectedId)
-      api
+      fotologApi
         .get(`/fotolog/posts/${selectedId}/comments`)
         .then((r) => {
           if (active) setComments(r.data);
@@ -284,6 +293,14 @@ export default function FotologPage() {
           {error && <p role="alert">{error}</p>}
         </div>
       )}
+      {user && data?.canActAsLeni && (
+        <div className="fl-identity-bar">
+          {actingAccount === 'leni' && <strong role="status">Estás usando la cuenta de Leni</strong>}
+          <label>Usar cuenta: <select aria-label="Cuenta de Fotolog" value={actingAccount} disabled={busy || !!modal} onChange={(e) => setActingAccount(e.target.value)}>
+            <option value="personal">Personal</option><option value="leni">Leni</option>
+          </select></label>
+        </div>
+      )}
       <div className="fl-wrap" inert={preview ? '' : undefined}>
         <header className="fl-header">
           <Link to="/fotolog" className="fl-logo">
@@ -296,7 +313,7 @@ export default function FotologPage() {
               e.preventDefault();
               if (!user) { navigate('/login'); return; }
               action(async () => {
-                setResults((await api.get('/fotolog/users', { params: { search: query } })).data);
+                setResults((await fotologApi.get('/fotolog/users', { params: { search: query } })).data);
                 setView('search');
               });
             }}
@@ -316,10 +333,10 @@ export default function FotologPage() {
           <div className="fl-account">
             {user ? <>{language === 'es' ? 'Hola' : 'Hi'} <b>{stripHtml(data?.viewerName || user.accountName || 'Mi Fotolog')}</b></> : <Link to="/login">{t.login}</Link>}
             <br />
-            <Link to="/">Messenger</Link> | <button type="button" className="fl-link" onClick={toggleLanguage} aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}>{t.switchLanguage}</button>
+            <button type="button" className="fl-link" onClick={toggleLanguage} aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}>{t.switchLanguage}</button>
           </div>
           <nav>
-            <Link to="/fotolog" onClick={() => setView('photo')}>
+            <Link to={actingAccount === 'leni' ? '/fotolog/leni' : '/fotolog'} onClick={() => setView('photo')}>
               {t.myFotolog}
             </Link>
             {(mine || canManage) && (
@@ -340,7 +357,7 @@ export default function FotologPage() {
               <button
                 onClick={() => {
                   action(async () => {
-                    const own = canManage && !mine ? data : (await api.get(`/fotolog/profiles/${user?.id}`)).data;
+                    const own = canManage && !mine ? data : (await fotologApi.get(`/fotolog/profiles/${data?.actorId || user?.id}`)).data;
                     setOwnProfile(own.profile);
                     setOwnData(own);
                     setModal('custom');
@@ -369,12 +386,12 @@ export default function FotologPage() {
                 {t.myArchive}
               </button>
               <p>{profile.description || t.welcome}</p>
-              {user && !mine && !canManage && (
+              {user && !mine && (
                 <button
                   disabled={busy}
                   onClick={() =>
                     action(async () => {
-                      await api.put(`/fotolog/favorites/${profile.user_id}`);
+                      await fotologApi.put(`/fotolog/favorites/${profile.user_id}`);
                       setError(t.addSuccess);
                     })
                   }
@@ -445,8 +462,8 @@ export default function FotologPage() {
                             const form = e.currentTarget;
                             const body = new FormData(form).get('body');
                             action(async () => {
-                              await api.post(`/fotolog/posts/${selected.id}/comments`, { body });
-                              setComments((await api.get(`/fotolog/posts/${selected.id}/comments`)).data);
+                              await fotologApi.post(`/fotolog/posts/${selected.id}/comments`, { body });
+                              setComments((await fotologApi.get(`/fotolog/posts/${selected.id}/comments`)).data);
                               form.reset();
                             });
                           }}
@@ -507,7 +524,7 @@ export default function FotologPage() {
                             disabled={busy}
                             onClick={() =>
                               action(async () => {
-                                await api.delete(`/fotolog/favorites/${f.id}`);
+                                await fotologApi.delete(`/fotolog/favorites/${f.id}`);
                                 await load();
                               })
                             }
@@ -566,7 +583,7 @@ export default function FotologPage() {
                 const values = new FormData(e.currentTarget);
                 action(async () => {
                   if (modal === 'upload') {
-                    await api.post('/fotolog/posts', {
+                    await fotologApi.post('/fotolog/posts', {
                       userId: ownProfile?.user_id,
                       image: await readImage(values.get('image')),
                       title: values.get('title'),
@@ -574,8 +591,8 @@ export default function FotologPage() {
                     });
                   } else {
                     const targetId = ownProfile?.user_id || user?.id;
-                    const current = ownProfile || (await api.get(`/fotolog/profiles/${targetId}`)).data.profile;
-                    await api.put('/fotolog/profile', { ...(await customization(values, current)), userId: targetId });
+                    const current = ownProfile || (await fotologApi.get(`/fotolog/profiles/${targetId}`)).data.profile;
+                    await fotologApi.put('/fotolog/profile', { ...(await customization(values, current)), userId: targetId });
                   }
                   if (mine || canManage) await load();
                   else navigate('/fotolog');

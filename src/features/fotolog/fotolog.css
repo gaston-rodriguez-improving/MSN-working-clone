@@ -30,13 +30,15 @@ body:has(.fotolog) {
 .fotolog button {
   cursor: pointer;
   background: #eee;
+  color: #111;
   border: 1px solid #999;
   padding: 4px 10px;
   border-radius: 0;
   box-shadow: none;
 }
 .fotolog button:disabled {
-  opacity: 0.4;
+  color: #666;
+  background: #eee;
   cursor: default;
 }
 .fotolog input,
@@ -434,3 +436,20 @@ body:has(.fotolog) {
     padding-top: 125px;
   }
 }
+
+.fl-identity-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border: 1px solid #111;
+  background: #fff5c4;
+  color: #111;
+  font: 13px Arial, sans-serif;
+}
+.fl-identity-bar select { margin-left: 6px; color: #111; background: white; }

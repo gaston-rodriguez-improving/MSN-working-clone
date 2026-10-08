@@ -5,6 +5,17 @@ const fotologName = (user) => String(user?.account_name || '').trim() || 'Mi Fot
 const nameSql = "COALESCE(NULLIF(BTRIM(p.name), ''), NULLIF(BTRIM(u.account_name), ''), 'Mi Fotolog')";
 const color = (value) => /^#[a-fA-F0-9]{6}$/.test(value);
 module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, config, isAdminRequest }) {
+  // Acting as Leni is scoped to Fotolog and always requires the real admin session.
+  app.use('/fotolog', (req, res, next) => {
+    if (req.get('x-fotolog-account') !== 'leni') return next();
+    return auth(req, res, asyncRoute(async () => {
+      if (!(await isAdminRequest(req))) return res.status(403).json({ error: 'Solo los administradores pueden usar la cuenta de Leni' });
+      req.fotologActor = (await db.query("SELECT * FROM users WHERE email='fotolog-leni@system.invalid' AND is_managed_profile AND company_id=$1 AND event_id=$2", [config.companyId, config.eventId])).rows[0];
+      if (!req.fotologActor) return res.status(404).json({ error: 'Fotolog de Leni no encontrado' });
+      next();
+    }));
+  });
+  const actor = req => req.fotologActor || req.user;
   const exists = async (id) => Number.isSafeInteger(Number(id)) && (await getUser(Number(id)));
   const withUrls = async (rows, key = 'id') =>
     Promise.all(rows.map(async (row) => ({ ...row, slug: await ensureFotologUrl(db, row[key]) })));
@@ -42,11 +53,13 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
           `SELECT u.id, ${nameSql} AS name, (SELECT image FROM fotolog_posts WHERE user_id=u.id ORDER BY day DESC LIMIT 1) AS image FROM fotolog_favorites f JOIN users u ON u.id=f.favorite_id LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE f.user_id=$1 ORDER BY f.created_at DESC`,
           [user.id]
         ),
-        req.user ? db.query('SELECT name FROM fotolog_profiles WHERE user_id=$1', [req.user.id]) : Promise.resolve({ rows: [] }),
+        req.user ? db.query('SELECT name FROM fotolog_profiles WHERE user_id=$1', [actor(req).id]) : Promise.resolve({ rows: [] }),
       ]);
       const canManage = !!req.user && (user.id === req.user.id || (user.is_managed_profile && await isAdminRequest(req)));
       res.json({
-        viewerName: viewer.rows[0]?.name || fotologName(req.user),
+        viewerName: viewer.rows[0]?.name || fotologName(actor(req)),
+        actorId: actor(req)?.id,
+        canActAsLeni: !!req.user && await isAdminRequest(req),
         profile: {
           user_id: user.id,
           description: '',
@@ -86,7 +99,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
         if (theme[key] && !image(theme[key])) return res.status(400).json({ error: 'Imagen inválida o demasiado grande' });
         if (theme[key]) clean[key] = theme[key];
       }
-      const targetId = Number(req.body?.userId || req.user.id);
+      const targetId = Number(req.body?.userId || actor(req).id);
       const target = await exists(targetId);
       if (!target) return res.status(404).json({ error: 'Fotolog no encontrado' });
       if (targetId !== req.user.id && (req.params.userId || !target.is_managed_profile || !(await isAdminRequest(req))))
@@ -112,7 +125,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
         body.length > 10000
       )
         return res.status(400).json({ error: 'Revisá la foto, el título y el texto' });
-      const targetId = Number(req.body?.userId || req.user.id);
+      const targetId = Number(req.body?.userId || actor(req).id);
       const target = await exists(targetId);
       if (!target) return res.status(404).json({ error: 'Fotolog no encontrado' });
       if (targetId !== req.user.id && (req.params.userId || !target.is_managed_profile || !(await isAdminRequest(req))))
@@ -162,7 +175,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
         return res.status(400).json({ error: 'La firma debe tener entre 1 y 2000 caracteres' });
       await db.query('INSERT INTO fotolog_comments(post_id,user_id,body) VALUES($1,$2,$3)', [
         req.params.id,
-        req.user.id,
+        actor(req).id,
         req.body?.body.trim(),
       ]);
       res.status(201).json({ ok: true });
@@ -172,10 +185,10 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
     '/fotolog/favorites/:id',
     auth,
     asyncRoute(async (req, res) => {
-      if (!(await exists(req.params.id)) || Number(req.params.id) === req.user.id)
+      if (!(await exists(req.params.id)) || Number(req.params.id) === actor(req).id)
         return res.status(400).json({ error: 'Favorito inválido' });
       await db.query('INSERT INTO fotolog_favorites(user_id,favorite_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [
-        req.user.id,
+        actor(req).id,
         req.params.id,
       ]);
       res.json({ ok: true });
@@ -186,7 +199,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
     auth,
     asyncRoute(async (req, res) => {
       if (!Number.isSafeInteger(Number(req.params.id))) return res.status(400).json({ error: 'Favorito inválido' });
-      await db.query('DELETE FROM fotolog_favorites WHERE user_id=$1 AND favorite_id=$2', [req.user.id, req.params.id]);
+      await db.query('DELETE FROM fotolog_favorites WHERE user_id=$1 AND favorite_id=$2', [actor(req).id, req.params.id]);
       res.json({ ok: true });
     })
   );

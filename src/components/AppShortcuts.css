@@ -1,0 +1,38 @@
+.app-shortcuts {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 50;
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, .65);
+  border-radius: 8px;
+  background: rgba(235, 239, 244, .92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+
+.app-shortcuts__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+}
+
+.app-shortcuts__link:hover {
+  background: rgba(255, 255, 255, .8);
+}
+
+.app-shortcuts__link:focus-visible {
+  outline: 2px solid #1668b2;
+  outline-offset: 1px;
+}
+
+.app-shortcuts__link img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
