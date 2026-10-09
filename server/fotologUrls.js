@@ -21,7 +21,7 @@ async function ensureFotologUrl(db, userId) {
     const {
       rows: [user],
     } = await client.query(
-      "SELECT COALESCE(NULLIF(p.name,''),NULLIF(u.account_name,''),'Mi Fotolog') AS name, u.is_managed_profile FROM users u LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE u.id=$1",
+      "SELECT COALESCE(NULLIF(p.name,''),NULLIF(NULLIF(u.account_name,''),'Mi Fotolog'),NULLIF(INITCAP(REGEXP_REPLACE(SPLIT_PART(u.email, '@', 1), '[._-]+', ' ', 'g')), ''),'Mi Fotolog') AS name, u.is_managed_profile FROM users u LEFT JOIN fotolog_profiles p ON p.user_id=u.id WHERE u.id=$1",
       [userId]
     );
     const {

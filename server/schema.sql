@@ -178,6 +178,10 @@ CREATE TABLE IF NOT EXISTS fotolog_favorites (
 -- Preserve the verified mail account name separately from the MSN nickname.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_managed_profile BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE fotolog_profiles ADD COLUMN IF NOT EXISTS name_is_default BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE fotolog_profiles SET name_is_default=TRUE WHERE name='Mi Fotolog' AND name_is_default=FALSE;
+UPDATE fotolog_profiles p SET name=COALESCE(NULLIF(NULLIF(BTRIM(u.account_name), ''), 'Mi Fotolog'), NULLIF(INITCAP(REGEXP_REPLACE(SPLIT_PART(u.email, '@', 1), '[._-]+', ' ', 'g')), ''), 'Mi Fotolog')
+  FROM users u WHERE p.user_id=u.id AND p.name_is_default=TRUE;
 
 CREATE TABLE IF NOT EXISTS fotolog_urls (
   slug TEXT PRIMARY KEY,

@@ -23,18 +23,18 @@ test(
       await db.query('DELETE FROM users WHERE id=ANY($1::int[])', [ids]);
       await db.end();
     });
-    const create = async (company) => {
+    const create = async (company, localPart) => {
       const suffix = randomUUID();
       const user = (
         await db.query(
           'INSERT INTO users(email,username,password_hash,company_id,event_id) VALUES($1,$2,$3,$4,$5) RETURNING id',
-          [`${suffix}@local.test`, suffix, 'test', company, 'local-retro']
+          [`${localPart || suffix}@local.test`, suffix, 'test', company, 'local-retro']
         )
       ).rows[0];
       ids.push(user.id);
       return { ...user, token: jwt.sign({ sub: user.id, companyId: company, eventId: 'local-retro' }, 'local-development-only') };
     };
-    const alice = await create('local-company'),
+    const alice = await create('local-company', 'gaston.rodriguez'),
       bob = await create('local-company'),
       other = await create('other-company');
     const request = async (path, user = alice, method = 'GET', body) => {
@@ -46,6 +46,9 @@ test(
       return { status: r.status, body: await r.json() };
     };
     assert.equal((await request(`/profiles/${other.id}`)).status, 404);
+    const initialProfile = (await request(`/profiles/${alice.id}`)).body.profile;
+    assert.equal(initialProfile.name, 'Gaston Rodriguez');
+    assert.equal(initialProfile.email, 'gaston.rodriguez@local.test');
     await db.query('UPDATE users SET account_name=$1 WHERE id=$2', ['Ana Pérez', bob.id]);
     assert.equal((await request(`/profiles/${bob.id}`)).body.profile.name, 'Ana Pérez');
     const bobSlug = (await request(`/profiles/${bob.id}`)).body.profile.slug;

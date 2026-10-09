@@ -1,8 +1,13 @@
 const { ensureFotologUrl } = require('./fotologUrls');
 const image = (value) =>
   typeof value === 'string' && value.length <= 700000 && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
-const fotologName = (user) => String(user?.account_name || '').trim() || 'Mi Fotolog';
-const nameSql = "COALESCE(NULLIF(BTRIM(p.name), ''), NULLIF(BTRIM(u.account_name), ''), 'Mi Fotolog')";
+const { emailNameFromAddress } = require('./accountName');
+const fotologName = (user) => {
+  const accountName = String(user?.account_name || '').trim();
+  return (accountName && accountName !== 'Mi Fotolog' ? accountName : emailNameFromAddress(user?.email)) || 'Mi Fotolog';
+};
+const emailNameSql = "NULLIF(INITCAP(REGEXP_REPLACE(SPLIT_PART(u.email, '@', 1), '[._-]+', ' ', 'g')), '')";
+const nameSql = `COALESCE(NULLIF(BTRIM(p.name), ''), NULLIF(NULLIF(BTRIM(u.account_name), ''), 'Mi Fotolog'), ${emailNameSql}, 'Mi Fotolog')`;
 const color = (value) => /^#[a-fA-F0-9]{6}$/.test(value);
 module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, config, isAdminRequest }) {
   // Acting as Leni is scoped to Fotolog and always requires the real admin session.
@@ -66,6 +71,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
           theme: {},
           ...profile.rows[0],
           name: profile.rows[0]?.name?.trim() || fotologName(user),
+          email: user.is_managed_profile ? '' : user.email,
           slug: await ensureFotologUrl(db, user.id),
           canManage,
         },
@@ -105,7 +111,7 @@ module.exports = function registerFotolog(app, { db, auth, asyncRoute, getUser, 
       if (targetId !== req.user.id && (req.params.userId || !target.is_managed_profile || !(await isAdminRequest(req))))
         return res.status(403).json({ error: 'Solo los administradores pueden editar este Fotolog' });
       await db.query(
-        'INSERT INTO fotolog_profiles(user_id,name,description,theme) VALUES($1,$2,$3,$4) ON CONFLICT(user_id) DO UPDATE SET name=$2,description=$3,theme=$4',
+        'INSERT INTO fotolog_profiles(user_id,name,description,theme,name_is_default) VALUES($1,$2,$3,$4,FALSE) ON CONFLICT(user_id) DO UPDATE SET name=$2,description=$3,theme=$4,name_is_default=FALSE',
         [targetId, name.trim(), description, clean]
       );
       res.json({ ok: true, slug: await ensureFotologUrl(db, targetId) });

@@ -391,9 +391,10 @@ export default function FotologPage() {
             {theme.banner && <img className="fl-banner" src={theme.banner} alt={`Banner de ${profileDisplayName}`} />}
             <div className="fl-profile">
               <h1>{profileDisplayName}</h1>
+              {profile.email && <div className="fl-profile-email">{profile.email}</div>}
               <span>{t.about} {profileDisplayName} · </span>
               <button className="fl-link" onClick={() => setView('archive')}>
-                {t.myArchive}
+                {profile.email?.split('@')[0] || profile.slug || t.myArchive}
               </button>
               <p>{profile.description || t.welcome}</p>
               {user && !mine && (

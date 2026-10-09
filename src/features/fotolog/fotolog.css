@@ -146,6 +146,9 @@ body:has(.fotolog) {
   margin: 6px 0;
   white-space: pre-wrap;
 }
+.fl-profile-email {
+  margin: -3px 0 8px;
+}
 .fl-columns {
   display: grid;
   grid-template-columns: 150px minmax(0, 600px) 150px;
