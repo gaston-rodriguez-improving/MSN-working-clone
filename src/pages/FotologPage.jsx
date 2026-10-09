@@ -394,7 +394,7 @@ export default function FotologPage() {
               {profile.email && <div className="fl-profile-email">{profile.email}</div>}
               <span>{t.about} {profileDisplayName} · </span>
               <button className="fl-link" onClick={() => setView('archive')}>
-                {profile.email?.split('@')[0] || profile.slug || t.myArchive}
+                {t.myArchive}
               </button>
               <p>{profile.description || t.welcome}</p>
               {user && !mine && (
