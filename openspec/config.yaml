@@ -1,0 +1,99 @@
+schema: spec-driven
+
+context: |
+  Tech stack: JavaScript (no TypeScript), React 18, Vite 5, React Router 6, Tailwind 3 + 7.css (Windows 7 look), Axios, Webamp, YouTube IFrame API
+  Backend: Node + Express 4 (CommonJS) with a ws WebSocket server, PostgreSQL via pg (no ORM), JWT (jsonwebtoken) and Microsoft Entra SSO (MSAL on the client, jose on the server)
+  Two packages, not a workspace: root = frontend (ESM, "type": "module"), server/ = backend (CommonJS) with its own package.json and lockfile
+  Purpose: retro Windows Live Messenger clone for a company event (chat, friends, presence, nudges, Fotolog, Winamp, admin panel)
+  Multi-tenant scope: every user, conversation, track and folder belongs to config.companyId + config.eventId. Every query and every JWT check MUST filter by both
+  Auth: password or Microsoft sign-in issues a JWT (claims sub, companyId, eventId, authProvider). Admin = Microsoft-authenticated AND listed in adminEmails or admin_users. Never grant admin to password-provider tokens
+  Realtime: single-process WebSocket fanout (/ws). Anything that must work across replicas needs shared pub/sub first, so call this out in designs
+  Commands (run from the repo root):
+  - npm run lint          ESLint, zero warnings allowed
+  - npm run format        Prettier (single quotes, semicolons, printWidth 130, trailing commas es5)
+  - npm run build         Vite production build
+  - npm run test:music    frontend + winamp unit tests (node --test)
+  - npm --prefix server test   backend tests (node --test); integration suites skip unless their env flag is set
+  - npm run dev:local + npm run server:local   isolated local Postgres on :55439, backend on :3309, frontend on :5179, email sign-up for @local.test addresses. Use this instead of the RDS database
+  Tests use the Node built-in runner (node:test + node:assert/strict). There is no Vitest, Jest or Testing Library. Do not add a test framework without asking
+  All code, comments, commit messages and artifacts in English. User-facing UI text follows the existing screen: Fotolog is bilingual (English/Spanish, browser detection), admin copy lives in src/features/admin/copy.js
+
+  Knowledge graph (read before exploring): graphify-out/ holds a code graph of this repo.
+  - For architecture or "what depends on X" questions run `graphify query "<question>"`, `graphify explain "<node>"`, `graphify path "<A>" "<B>"` or `graphify affected "<node>"` BEFORE grepping or reading many files
+  - Use `graphify affected "<File.jsx>"` to size the blast radius of a change when writing proposals and designs
+  - Read graphify-out/GRAPH_REPORT.md only for broad architecture review
+  - After changing code files run `graphify update .` (AST only, no API cost)
+
+  Codebase conventions (derived from the existing code, follow them rather than introducing new patterns):
+  - Frontend structure: src/pages (route screens, composed of components), src/components (shared UI), src/contexts (Auth, Chat, Toast, Emoticon), src/features/<feature>/ (self-contained feature logic, e.g. winamp, listening, admin, fotolog), src/helpers and src/utils (pure helpers, auth providers), src/data/api.js (the ONLY place that talks HTTP)
+  - Provider order in src/main.jsx is Toast -> Auth -> Chat -> Emoticon -> Router. New global providers must fit this chain and may depend only on providers above them
+  - AuthContext is the single source of truth for the session (localStorage keys messenger_token and messenger_user, cross-tab sync via the storage event). It has 10+ dependents (pages, Dropdown, OptionsModal, PrivateRoute, ChatContext...). Changes to its shape require updating every consumer
+  - Routes are guarded with PrivateRoute. Heavy pages (Winamp, Fotolog) are lazy-loaded with Suspense. Optional features are gated by build-time flags (VITE_ENABLE_WINAMP, VITE_ENABLE_LISTENING in src/features/musicConfig.js)
+  - API calls: add one exported function per endpoint in src/data/api.js using the shared axios instance (it injects the Bearer token). Components never call axios directly
+  - Put testable logic in plain .js modules (no JSX, no React imports) next to the component with a sibling .test.js, e.g. features/winamp/sharedPlaylistSync.js, features/listening/state.js, features/winamp/tracks.js. Components stay thin
+  - Backend: server/server.js holds routes, middleware (auth, adminAuth, asyncRoute) and WebSocket wiring. Reusable or testable logic goes in its own CommonJS module with a sibling .test.js (accountName, fotologUrls, presenceGrace, adminMetrics, music). server.js is already ~600 lines, so do not keep growing it with new domain logic. Extract a module instead
+  - Backend modules take their side effects as injected parameters (see createPresenceGrace({ schedule, cancel })) so tests need no timers, DB or network
+  - Schema changes go in server/schema.sql as additive, idempotent statements (CREATE TABLE IF NOT EXISTS, ADD COLUMN IF NOT EXISTS). Identity primary keys, TIMESTAMPTZ columns, soft deletes where history matters, partial unique indexes for "active only" uniqueness
+  - New REST route prefixes must also be added to the proxy regex in nginx.conf (location ~ ^/(auth|admin|users|...)(/|$)) or they will 404 in production. The /fotolog sub-routes have their own regex
+  - Deploy order: backend + schema + nginx first, then frontend. Frontend flags are rollout switches, not authorization. Authorization is always enforced on the server
+  - Never log or commit secrets. .env files and *.pem are ignored. Document new env vars in .env.example (root) or server/.env.example (backend)
+  - Vendored/retro assets under public/ (swf, images, sounds) are authentic originals: do not modify or regenerate them
+
+  Known weak spots (design around them, do not make them worse): HomePage.jsx, main.jsx and server.js are low-cohesion hubs; formatName() and stripHtml() are cross-community bridges used by HomePage, AdminPage and others (changing their behavior has wide impact); there are no automated tests for React components or routes
+
+rules:
+  proposal:
+    - Always include a Non-goals section
+    - State which side is affected - frontend (root), backend (server/), database (server/schema.sql), nginx.conf, or several
+    - List affected existing modules. Use `graphify affected` for shared hubs such as AuthContext, ChatContext, api.js, formatName and stripHtml
+    - State the tenant and auth impact (company/event scoping, Microsoft-only admin) for any endpoint or data change
+    - State the rollout impact - new env vars, build flags, additive schema, nginx regex, deploy order
+    - Keep the proposal short and focused on why and what, not how
+  specs:
+    - Write scenarios in Given/When/Then format
+    - Organize by feature area matching the project (auth, chat, friends-and-presence, fotolog, winamp-listening, admin)
+    - Include edge cases and error scenarios - 401 for missing or invalid token, 403 for non-admin, 404 for out-of-scope resources, 409 for duplicates, WebSocket reconnect, logout in another tab
+    - Include a scenario for company/event isolation whenever data is read or written
+    - Specify user-visible text and language when the UI changes (English only, or English and Spanish for Fotolog)
+  design:
+    - Run `graphify query` or `graphify explain` on the affected area before designing and reference the existing nodes you reuse
+    - Follow the existing structure - page -> components -> feature module (pure logic) -> src/data/api.js on the frontend and route -> domain module -> pg on the backend
+    - Identify what is pure logic (goes in a tested .js module) and what is wiring (component, route, schema)
+    - Frontend state separation - session state lives only in AuthContext, chat and presence state in ChatContext, transient UI state in local useState, feature state in a feature module or hook. Do not duplicate session or user data in new contexts or in zustand stores without a reason
+    - Prefer extending an existing context or module over adding a new global provider. If a new provider is needed, state where it goes in the src/main.jsx chain
+    - Define the API contract (method, path, auth middleware, request and response shape, status codes) and the matching src/data/api.js function
+    - For WebSocket changes define the message type, who receives it, how it is scoped by company/event, and what happens on reconnect (see presenceGrace)
+    - Define schema changes as additive SQL and say how existing rows are migrated or defaulted
+    - State what is deliberately not extracted from server.js, and why, if new backend logic stays inline
+    - Call out single-process limitations (in-memory state, WebSocket fanout) when relevant
+  tasks:
+    - Group tasks inside-out - schema and pure logic modules first, then server routes and WebSocket handlers, then src/data/api.js, then components and pages, then docs and config
+    - Tasks with behavior in a pure module (parsers, state reducers, sync planners, validators, permission checks) use TDD format - RED write failing node:test test for X -> GREEN implement X -> COMMIT -> REFACTOR
+    - Tasks that are pure wiring (JSX layout, CSS, routes, schema DDL, env vars, nginx regex, api.js one-liners) are plain tasks without TDD format
+    - Keep tasks small enough to implement and verify in one sitting, and name the exact files they touch
+    - Testing strategy per layer
+    - Pure frontend modules (src/features/**, src/helpers, src/utils) - unit tests as sibling X.test.js, run with `npm run test:music` or `node --test <file>`. Add new test files to the test:music script when they belong to it
+    - Pure backend modules (server/*.js) - unit tests as sibling X.test.js with injected dependencies, run with `npm --prefix server test`
+    - Routes, permissions, tenant isolation and WebSocket behavior - integration tests as X.integration.test.js against a disposable local Postgres, gated by an env flag (see server/music.integration.test.js and fotolog.integration.test.js) so the default run skips them
+    - React components and pages - no automated test harness exists. Verify with `npm run lint`, `npm run build` and a manual check on `npm run dev:local`, and list the manual steps in the task
+    - Do not mock the database in integration tests. Use fake timers or injected schedulers instead of real waits in unit tests
+    - Never run tests, seeds or migrations against the shared RDS database. Use the local dev stack
+    - If the change adds a REST route prefix, include a task to update the nginx.conf proxy regex
+    - If the change adds env vars or flags, include a task to update .env.example and docs
+    - Always include a final validation group - `npm run lint`, `npm run build`, `npm --prefix server test`, `npm run test:music`, then `graphify update .`
+    - Always include a final task - commit all changes with a short imperative message in the style of the existing log (for example "Add presence grace period to prevent flicker on WebSocket reconnection")
+
+operations:
+  apply:
+    guidance:
+      - Read the relevant files and run `graphify query` or `graphify explain` before editing. Match the surrounding code style (Prettier config, single quotes, existing naming)
+      - Implement one task at a time and tick it off in tasks.md right after it is verified
+      - For TDD tasks, show the failing test first, then the implementation, then run the focused test file
+      - Run `npm run lint` after frontend edits (zero warnings allowed) and the focused node --test file after backend edits
+      - Do not touch .env files, *.pem, dist/ or public/ original assets. Never target the shared RDS database
+      - Stop and ask when a task needs a new dependency, a test framework, a destructive schema change, or a change to the AuthContext shape
+      - Run `graphify update .` after finishing code changes
+  archive:
+    guidance:
+      - Confirm lint, build and both test commands passed before archiving
+      - Summarize the archive outcome, including schema, env var, flag and nginx changes that need deployment, and the deploy order
