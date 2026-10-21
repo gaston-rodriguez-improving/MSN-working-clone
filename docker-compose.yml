@@ -35,3 +35,10 @@ services:
     ports:
       - "80:80"
     restart: unless-stopped
+
+  win98:
+    build:
+      context: ${WIN98_CONTEXT:-../win98-web}
+    expose:
+      - "80"
+    restart: unless-stopped

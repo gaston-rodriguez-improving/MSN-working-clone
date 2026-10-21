@@ -1,0 +1,40 @@
+name: msn-win98-verify
+
+# Local verification stack for the win98-web routing: a stub api (no database,
+# no server/.env, no RDS bundle), the real web nginx image and the win98 image.
+# Usage: docker compose -f scripts/win98-routing/docker-compose.verify.yml up -d --build
+
+services:
+  api:
+    image: node:22-alpine
+    command:
+      - node
+      - -e
+      - "require('http').createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok'); }).listen(3001)"
+    expose:
+      - "3001"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  web:
+    build:
+      context: ../..
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+
+  win98:
+    build:
+      context: ${WIN98_CONTEXT:-../../../win98-web}
+    expose:
+      - "80"
