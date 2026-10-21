@@ -8,7 +8,7 @@
   "6": "api.js",
   "7": "AdminPage.jsx",
   "8": "server/package.json",
-  "9": "WinampPage.jsx",
+  "9": "api",
   "10": "dependencies",
   "11": "discordAuth.js",
   "12": "FotologPage.jsx",
@@ -21,7 +21,7 @@
   "19": "vite.config.js",
   "20": "adminMetrics.test.js",
   "21": "[Windows Live Messenger](https://wlm.vercel.app/)",
-  "22": "ref_node_test",
+  "22": "ADDED Requirements",
   "23": "fotolog.integration.test.js",
   "24": "removeExpiredActivities",
   "25": "ref_node_assert",
@@ -29,7 +29,7 @@
   "27": "getUser",
   "28": "broadcast",
   "29": "MilkDrop window skin QA",
-  "30": "microsoftAuth.js",
+  "30": "ToastContext.jsx",
   "31": "local-db.sh",
   "32": "isAdminRequest",
   "33": "listAdmins",
@@ -45,5 +45,6 @@
   "43": "openspec-update-change/SKILL.md",
   "44": ".eslintrc.cjs",
   "45": "postcss.config.js",
-  "46": "LoadingPage.jsx"
+  "46": "LoadingPage.jsx",
+  "47": "verify.sh"
 }

@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1792597651.4856417,
-    "seen": 1792608198.880367,
-    "ast_hash": "a2543ecb128f22124b90b8a765b33a61",
+    "mtime": 1792611903.2483547,
+    "seen": 1792611973.0538938,
+    "ast_hash": "0507dfa0a8571fde55d2ace1917f0f93",
     "semantic_hash": ""
   },
   "design-qa.md": {
@@ -636,9 +636,9 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1792597651.524343,
-    "seen": 1792608198.8803682,
-    "ast_hash": "46205d17f85f375ddaabf6f2f5b0ed29",
+    "mtime": 1792611654.8155448,
+    "seen": 1792611973.05391,
+    "ast_hash": "bd1a93a71ae9576589f4de843636b925",
     "semantic_hash": ""
   },
   "docs/winamp-implementation-plan.md": {
@@ -660,9 +660,9 @@
     "semantic_hash": ""
   },
   "openspec/config.yaml": {
-    "mtime": 1792606875.5114534,
-    "seen": 1792608198.88037,
-    "ast_hash": "500a0a16229f8fd0848dc7cff85d21e9",
+    "mtime": 1792608453.9313178,
+    "seen": 1792611973.0539598,
+    "ast_hash": "63f9953392d1c92264bd6add908cc018",
     "semantic_hash": ""
   },
   "redirect.html": {
@@ -2589,6 +2589,48 @@
     "mtime": 1792597651.5437853,
     "seen": 1792608198.880488,
     "ast_hash": "7acb477e01b840910d57c16f83138453",
+    "semantic_hash": ""
+  },
+  "scripts/win98-routing/verify.sh": {
+    "mtime": 1792611757.4748945,
+    "seen": 1792611973.052175,
+    "ast_hash": "5376de08c1711a1cc3a1f301ca93c097",
+    "semantic_hash": ""
+  },
+  "openspec/changes/serve-win98-under-path/.openspec.yaml": {
+    "mtime": 1792609213.2199092,
+    "seen": 1792611973.053956,
+    "ast_hash": "8dc49b4fe381379a3a28d72313f76df6",
+    "semantic_hash": ""
+  },
+  "openspec/changes/serve-win98-under-path/design.md": {
+    "mtime": 1792610118.9332721,
+    "seen": 1792611973.0539572,
+    "ast_hash": "d25ffffefa77c46ae7ba3db7afda8044",
+    "semantic_hash": ""
+  },
+  "openspec/changes/serve-win98-under-path/proposal.md": {
+    "mtime": 1792610118.6121614,
+    "seen": 1792611973.053958,
+    "ast_hash": "1448cb1d17d86bb2a9d2879b6ab05b18",
+    "semantic_hash": ""
+  },
+  "openspec/changes/serve-win98-under-path/specs/win98-hosting/spec.md": {
+    "mtime": 1792610118.7953029,
+    "seen": 1792611973.053959,
+    "ast_hash": "3c7dca6d2d33ea4852e2c35b4f541b7a",
+    "semantic_hash": ""
+  },
+  "openspec/changes/serve-win98-under-path/tasks.md": {
+    "mtime": 1792611907.9891934,
+    "seen": 1792611973.053959,
+    "ast_hash": "9e28f6f1867997f1ec288f17e7061ff6",
+    "semantic_hash": ""
+  },
+  "scripts/win98-routing/docker-compose.verify.yml": {
+    "mtime": 1792611510.8297105,
+    "seen": 1792611973.053975,
+    "ast_hash": "dedcfdd928ba7877acc91532b5967d7d",
     "semantic_hash": ""
   }
 }

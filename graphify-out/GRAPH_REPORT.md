@@ -1,17 +1,17 @@
 # Graph Report - MSN-working-clone  (2026-10-21)
 
 ## Corpus Check
-- 103 files · ~221,682 words
+- 108 files · ~228,692 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 38 file(s) not represented in the graph (top: .swf 15, (none) 9, .log 4)
 
 ## Summary
-- 618 nodes · 1201 edges · 47 communities (33 shown, 14 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 25 edges (avg confidence: 0.85)
+- 684 nodes · 1281 edges · 48 communities (34 shown, 14 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 33 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `49992b58`
+- Built from commit: `c89f469c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -25,7 +25,7 @@
 - api.js
 - AdminPage.jsx
 - server/package.json
-- WinampPage.jsx
+- api
 - dependencies
 - discordAuth.js
 - FotologPage.jsx
@@ -38,7 +38,7 @@
 - vite.config.js
 - adminMetrics.test.js
 - [Windows Live Messenger](https://wlm.vercel.app/)
-- ref_node_test
+- ADDED Requirements
 - fotolog.integration.test.js
 - removeExpiredActivities
 - ref_node_assert
@@ -46,7 +46,7 @@
 - getUser
 - broadcast
 - MilkDrop window skin QA
-- microsoftAuth.js
+- ToastContext.jsx
 - local-db.sh
 - isAdminRequest
 - listAdmins
@@ -54,6 +54,7 @@
 - verifyAzureAdIdToken
 - initializeDatabase
 - presenceSweep
+- verify.sh
 
 ## God Nodes (most connected - your core abstractions)
 1. `react` - 39 edges
@@ -68,49 +69,49 @@
 10. `What You Must Do When Invoked` - 15 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `ListeningStatus()` --indirect_call--> `stripHtml()`  [INFERRED]
-  src/components/ListeningStatus.jsx → src/helpers/stripHtml.js
-- `fotologName()` --calls--> `emailNameFromAddress()`  [EXTRACTED]
-  server/fotolog.js → server/accountName.js
-- `initializeDatabase()` --calls--> `ensureFotologUrl()`  [EXTRACTED]
-  server/server.js → server/fotologUrls.js
-- `LoginPage()` --calls--> `AvatarLarge()`  [EXTRACTED]
-  src/pages/LoginPage.jsx → src/components/AvatarLarge.jsx
-- `LoginPage()` --calls--> `Background()`  [EXTRACTED]
-  src/pages/LoginPage.jsx → src/components/Background.jsx
+- `Context` --references--> `api()`  [INFERRED]
+  openspec/changes/serve-win98-under-path/design.md → server/music.integration.test.js
+- `Decisions` --references--> `api()`  [INFERRED]
+  openspec/changes/serve-win98-under-path/design.md → server/music.integration.test.js
+- `What Changes` --references--> `api()`  [INFERRED]
+  openspec/changes/serve-win98-under-path/proposal.md → server/music.integration.test.js
+- `Why` --references--> `api()`  [INFERRED]
+  openspec/changes/serve-win98-under-path/proposal.md → server/music.integration.test.js
+- `Scenario: API and health proxying` --references--> `api()`  [INFERRED]
+  openspec/changes/serve-win98-under-path/specs/win98-hosting/spec.md → server/music.integration.test.js
 
 ## Import Cycles
 - None detected.
 
-## Communities (47 total, 14 thin omitted)
+## Communities (48 total, 14 thin omitted)
 
 ### Community 0 - "HomePage.jsx"
-Cohesion: 0.06
-Nodes (57): 7.css, react, AddFriendModal(), AvatarLarge(), AvatarSmall(), Background(), CategoryModal(), ChangeDisplayPictureModal() (+49 more)
+Cohesion: 0.07
+Nodes (49): color-thief-react, AddFriendModal(), AvatarLarge(), CategoryModal(), ChangeDisplayPictureModal(), ChangeSceneModal(), ContactCategory(), ContactCategoryGroup() (+41 more)
 
 ### Community 1 - "main.jsx"
-Cohesion: 0.10
-Nodes (31): react-router-dom, apps, AppShortcuts(), OptionsModal(), PrivateRoute(), UpdateBanner(), AuthProvider(), login() (+23 more)
+Cohesion: 0.09
+Nodes (32): 7.css, @azure/msal-browser, react, react-router-dom, apps, AppShortcuts(), AvatarSmall(), Background() (+24 more)
 
 ### Community 2 - "server.js"
 Cohesion: 0.05
 Nodes (24): { accountNameFromClaims }, adminEmails, app, bcrypt, config, cors, crypto, db (+16 more)
 
 ### Community 3 - "YouTubeMediaAdapter"
-Cohesion: 0.09
-Nodes (9): webamp, planSharedPlaylistSync(), selectedSharedTracksForRemoval(), toWebampTrack(), WebampPlayer(), inertAnalyser, videoIdFromUrl(), YouTubeMediaAdapter (+1 more)
+Cohesion: 0.08
+Nodes (10): webamp, planSharedPlaylistSync(), selectedSharedTracksForRemoval(), toWebampTrack(), WebampPlayer(), createYouTubeBridge(), inertAnalyser, videoIdFromUrl() (+2 more)
 
 ### Community 4 - "/graphify"
 Cohesion: 0.06
 Nodes (32): For always-on context in Devin sessions, For --cluster-only, For git commit hook, For /graphify add, For /graphify explain, For /graphify path, For /graphify query, For --update (incremental re-extraction) (+24 more)
 
 ### Community 5 - "package.json"
-Cohesion: 0.07
-Nodes (26): cors, dotenv, express, jose, name, private, type, version (+18 more)
+Cohesion: 0.08
+Nodes (25): cors, dotenv, express, jose, name, private, type, version (+17 more)
 
 ### Community 6 - "api.js"
-Cohesion: 0.19
-Nodes (20): ChatProvider(), toContact(), useToast(), getChatMessages(), getFriendRequests(), getFriends(), getListeningActivities(), getListeningPreference() (+12 more)
+Cohesion: 0.10
+Nodes (36): ChatProvider(), toContact(), useToast(), addMusicTrack(), createMusicFolder(), getChatMessages(), getFriendRequests(), getFriends() (+28 more)
 
 ### Community 7 - "AdminPage.jsx"
 Cohesion: 0.18
@@ -120,9 +121,9 @@ Nodes (23): addAdmin(), getAdminMetrics(), getAdmins(), removeAdmin(), adminCopy
 Cohesion: 0.08
 Nodes (23): bcryptjs, ws, dependencies, bcryptjs, cors, dotenv, express, jose (+15 more)
 
-### Community 9 - "WinampPage.jsx"
-Cohesion: 0.16
-Nodes (15): addMusicTrack(), createMusicFolder(), getMusicFolders(), getMusicTrack(), getMusicTracks(), removeMusicTrack(), AddTrackDialog(), NewFolderDialog() (+7 more)
+### Community 9 - "api"
+Cohesion: 0.07
+Nodes (29): Confirmed Deployment Facts, Context, Decisions, Design, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs (+21 more)
 
 ### Community 10 - "dependencies"
 Cohesion: 0.10
@@ -153,12 +154,12 @@ Cohesion: 0.17
 Nodes (12): devDependencies, autoprefixer, eslint, eslint-plugin-react, eslint-plugin-react-hooks, eslint-plugin-react-refresh, postcss, tailwindcss (+4 more)
 
 ### Community 17 - "music.integration.test.js"
-Cohesion: 0.17
-Nodes (7): jsonwebtoken, assert, jwt, { Pool }, { randomUUID }, test, { WebSocket }
+Cohesion: 0.20
+Nodes (6): assert, jwt, { Pool }, { randomUUID }, test, { WebSocket }
 
 ### Community 18 - "fotolog.js"
-Cohesion: 0.27
-Nodes (8): accountNameFromClaims(), emailNameFromAddress(), { accountNameFromClaims, emailNameFromAddress }, assert, test, { emailNameFromAddress }, { ensureFotologUrl }, fotologName()
+Cohesion: 0.36
+Nodes (6): accountNameFromClaims(), emailNameFromAddress(), { accountNameFromClaims, emailNameFromAddress }, assert, test, fotologName()
 
 ### Community 19 - "vite.config.js"
 Cohesion: 0.20
@@ -169,24 +170,24 @@ Cohesion: 0.22
 Nodes (7): pg, nudgeLeaders(), assert, { nudgeLeaders }, { Pool }, { randomUUID }, test
 
 ### Community 21 - "[Windows Live Messenger](https://wlm.vercel.app/)"
-Cohesion: 0.22
-Nodes (8): About, Acknowledgments, Available Features, Contribute and Share Feedback, Fotolog, How to Use, Planned Features, [Windows Live Messenger](https://wlm.vercel.app/)
+Cohesion: 0.20
+Nodes (9): About, Acknowledgments, Available Features, Contribute and Share Feedback, Fotolog, How to Use, Planned Features, Win98 hosting (+1 more)
 
-### Community 22 - "ref_node_test"
-Cohesion: 0.28
-Nodes (6): ensureFotologUrl(), reserved, slugBase(), assert, { slugBase }, test
+### Community 22 - "ADDED Requirements"
+Cohesion: 0.08
+Nodes (24): ADDED Requirements, Purpose, Requirement: Canonical path gets its trailing slash, Requirement: Sub-paths and queries survive the short URL, Requirement: Upstream headers and ranges pass through, Requirement: Win98 availability does not affect MSN, Requirement: Win98 is only reachable through the proxy, Requirement: Win98 is reachable under /win98-web/ on the main domain (+16 more)
 
 ### Community 23 - "fotolog.integration.test.js"
-Cohesion: 0.22
-Nodes (8): color(), image(), assert, { image, color }, jwt, { Pool }, { randomUUID }, test
+Cohesion: 0.16
+Nodes (14): jsonwebtoken, color(), { emailNameFromAddress }, { ensureFotologUrl }, image(), assert, { image, color }, jwt (+6 more)
 
 ### Community 24 - "removeExpiredActivities"
 Cohesion: 0.32
 Nodes (8): activityView(), expirySweep, listeningEnvelope(), listListening(), pushListeningSnapshot(), removeExpiredActivities(), sendListening(), updateListening()
 
 ### Community 25 - "ref_node_assert"
-Cohesion: 0.33
-Nodes (4): parseYouTubeVideoId(), assert, { parseYouTubeVideoId }, test
+Cohesion: 0.20
+Nodes (7): assert, { slugBase }, test, parseYouTubeVideoId(), assert, { parseYouTubeVideoId }, test
 
 ### Community 26 - "presenceGrace.test.js"
 Cohesion: 0.38
@@ -204,9 +205,9 @@ Nodes (7): broadcast(), broadcastCatalogChange(), broadcastUser(), friendRequest
 Cohesion: 0.40
 Nodes (4): Comparison history, Findings, MilkDrop window skin QA, Verification
 
-### Community 30 - "microsoftAuth.js"
-Cohesion: 0.50
-Nodes (4): @azure/msal-browser, initializeMsal(), msalInstance, signInWithMicrosoft()
+### Community 30 - "ToastContext.jsx"
+Cohesion: 0.23
+Nodes (10): OptionsModal(), updateUsername(), isQuietPage(), RetroNotification(), ToastContext, ToastProvider(), readSoundPreferences(), SOUND_PREFERENCES_STORAGE_KEY (+2 more)
 
 ### Community 32 - "isAdminRequest"
 Cohesion: 0.67
@@ -216,25 +217,29 @@ Nodes (3): adminAuth, isAdminRequest(), normalizeEmail()
 Cohesion: 0.67
 Nodes (3): adminScope(), adminView(), listAdmins()
 
+### Community 47 - "verify.sh"
+Cohesion: 0.53
+Nodes (8): body_of(), fail(), header_value(), headers_of(), pass(), redirect_check(), verify.sh script, status_of()
+
 ## Knowledge Gaps
 - **24 isolated node(s):** `@ruffle-rs/ruffle`, `colorthief`, `cors`, `crypto-js`, `dotenv` (+19 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 289 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 322 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `HomePage.jsx` to `main.jsx`, `YouTubeMediaAdapter`, `package.json`, `api.js`, `AdminPage.jsx`, `WinampPage.jsx`, `discordAuth.js`, `FotologPage.jsx`?**
-  _High betweenness centrality (0.189) - this node is a cross-community bridge._
+- **Why does `react` connect `main.jsx` to `HomePage.jsx`, `YouTubeMediaAdapter`, `package.json`, `api.js`, `AdminPage.jsx`, `discordAuth.js`, `FotologPage.jsx`, `ToastContext.jsx`?**
+  _High betweenness centrality (0.170) - this node is a cross-community bridge._
 - **What connects `@ruffle-rs/ruffle`, `colorthief`, `cors` to the rest of the system?**
   _24 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `HomePage.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.06474490963166324 - nodes in this community are weakly interconnected._
-- **Why does `formatName()` connect `HomePage.jsx` to `main.jsx`, `AdminPage.jsx`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
+  _Cohesion score 0.07351351351351351 - nodes in this community are weakly interconnected._
+- **Why does `api()` connect `api` to `music.integration.test.js`?**
+  _High betweenness centrality (0.131) - this node is a cross-community bridge._
 - **Should `main.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.0975609756097561 - nodes in this community are weakly interconnected._
-- **Why does `pg` connect `adminMetrics.test.js` to `server/package.json`, `music.integration.test.js`, `server.js`, `fotolog.integration.test.js`?**
-  _High betweenness centrality (0.060) - this node is a cross-community bridge._
+  _Cohesion score 0.08571428571428572 - nodes in this community are weakly interconnected._
+- **Why does `formatName()` connect `HomePage.jsx` to `ToastContext.jsx`, `AdminPage.jsx`?**
+  _High betweenness centrality (0.081) - this node is a cross-community bridge._
 - **Should `server.js` be split into smaller, more focused modules?**
   _Cohesion score 0.05 - nodes in this community are weakly interconnected._
