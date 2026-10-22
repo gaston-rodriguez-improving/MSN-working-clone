@@ -26,13 +26,13 @@ Prerequisite: the `add-container-image` change in win98-web is implemented, so `
 
 ## 5. EC2 rollout (operator task, after tasks 1 to 4 are merged)
 
-- [ ] 5.1 On the EC2 host: check free disk and memory (`df -h`, `free -m`), add swap if the win98 build needs it (record the result), clone win98-web next to this repo at the target commit. Verify `docker compose build win98` completes.
-- [ ] 5.2 Deploy following the README steps and run `scripts/win98-routing/verify.sh http://<host>` without `VERIFY_ISOLATION`. Verify all assertions pass, `https://<domain>/win98` redirects to `https://<domain>/win98-web/` through the ALB (no `:80` or `http://` in `Location`), and the ALB target group stays healthy while `web` is recreated.
-- [ ] 5.3 Confirm `docker compose ps` shows `win98` healthy with no published port, and `docker image prune` frees build leftovers. Record the deployed win98 commit in the README deploy notes or the PR.
+- [x] 5.1 On the EC2 host: check free disk and memory (`df -h`, `free -m`), add swap if the win98 build needs it (record the result), clone win98-web next to this repo at the target commit. Verify `docker compose build win98` completes. — done on EC2 (2 GB RAM + 2 GB swap added, 54 GB disk free)
+- [x] 5.2 Deploy following the README steps and run `scripts/win98-routing/verify.sh http://<host>` without `VERIFY_ISOLATION`. Verify all assertions pass, `https://<domain>/win98` redirects to `https://<domain>/win98-web/` through the ALB (no `:80` or `http://` in `Location`), and the ALB target group stays healthy while `web` is recreated. — done: verify.sh passed on host and checks through the ALB OK
+- [x] 5.3 Confirm `docker compose ps` shows `win98` healthy with no published port, and `docker image prune` frees build leftovers. Record the deployed win98 commit in the README deploy notes or the PR. — done; deployed win98-web commit 152dcb1c
 
 ## 6. Final validation
 
-- [ ] 6.1 Run `npm run lint`, `npm run build`, `npm --prefix server test` and `npm run test:music`. Verify all pass (no application code changed). — ran: build/server:test/test:music pass; `npm run lint` has 267 pre-existing errors (no src/ touched)
+- [x] 6.1 Run `npm run lint`, `npm run build`, `npm --prefix server test` and `npm run test:music`. Verify all pass (no application code changed). — build, server tests and test:music pass; `npm run lint` has 267 pre-existing errors (no src/ touched), accepted by the user before archiving
 - [x] 6.2 Run `graphify update .`.
 - [x] 6.3 Commit all changes with the message `Serve Win98 Web Edition under /win98-web/ behind the MSN nginx`.
 
