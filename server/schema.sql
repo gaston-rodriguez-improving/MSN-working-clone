@@ -208,3 +208,13 @@ CREATE TABLE IF NOT EXISTS ct_sessions (
   started_at TIMESTAMPTZ,
   finished_at TIMESTAMPTZ
 );
+
+CREATE TABLE IF NOT EXISTS ct_office_settings (
+  company_id TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  office TEXT NOT NULL CHECK (office IN ('argentina', 'chile')),
+  patch_code TEXT NOT NULL,
+  is_default BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (company_id, event_id, office)
+);

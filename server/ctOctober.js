@@ -17,14 +17,29 @@ function keywordsMatch(stored, input) {
   return String(stored ?? '').trim().toLowerCase() === String(input ?? '').trim().toLowerCase();
 }
 
-function expectedCode() {
-  const configured = process.env.Y2K_PATCH_CODE;
-  return normalizeCode(configured == null || String(configured).trim() === '' ? 'Y2KPATCH99' : configured);
+function codesMatch(storedCode, input) {
+  if (!storedCode) return false;
+  return normalizeCode(storedCode) === normalizeCode(input);
 }
 
-function codesMatch(input) {
-  const code = expectedCode();
-  return code.length > 0 && normalizeCode(input) === code;
+function validatePatchCode(input, defaults = []) {
+  if (input == null || String(input).trim() === '') return 'Enter a code';
+  const raw = String(input).trim();
+  if (raw.length > 48 || !/^[A-Za-z0-9 -]+$/.test(raw)) return 'Use only letters, numbers, spaces and dashes';
+  const normalized = normalizeCode(raw);
+  if (!/^[A-Z0-9]{4,32}$/.test(normalized)) return 'Use 4 to 32 letters or numbers';
+  const rejected = new Set(defaults.filter(v => v != null && String(v).trim() !== '').map(v => normalizeCode(v)));
+  if (rejected.has(normalized)) return 'Choose a code different from the default';
+  return null;
+}
+
+async function seedOfficeCode(db, config, office) {
+  await db.query(
+    `-- ct:code-seed
+    INSERT INTO ct_office_settings (company_id, event_id, office, patch_code, is_default, updated_at)
+    VALUES ($1,$2,$3,$4,TRUE,$5) ON CONFLICT (company_id, event_id, office) DO NOTHING`,
+    [config.companyId, config.eventId, office, process.env.Y2K_PATCH_CODE || 'Y2KPATCH99', new Date().toISOString()]
+  );
 }
 
 function secretsMatch(expected, given) {
@@ -75,6 +90,7 @@ function validOffice(office) {
 
 async function seedCtOffices(db, config) {
   for (const office of OFFICES) {
+    await seedOfficeCode(db, config, office);
     const count = await db.query(
       `-- ct:count
       SELECT COUNT(*)::int AS count FROM ct_teams WHERE company_id=$1 AND event_id=$2 AND office=$3`,
@@ -170,7 +186,13 @@ function createCtRouter({ db, jwt, config, now = () => Date.now() }) {
     if (!claims) return res.status(401).json({ error: 'Authentication required' });
     const current = await loadSession(claims.teamId);
     if (!current?.started_at) return res.status(409).json({ error: RESET_ERROR });
-    if (!codesMatch(req.body?.code)) return res.status(401).json({ error: 'Wrong code' });
+    await seedOfficeCode(db, config, claims.office);
+    const stored = await db.query(
+      `-- ct:code-get
+      SELECT patch_code FROM ct_office_settings WHERE company_id=$1 AND event_id=$2 AND office=$3`,
+      [...scope(), claims.office]
+    );
+    if (!codesMatch(stored.rows[0]?.patch_code, req.body?.code)) return res.status(401).json({ error: 'Wrong code' });
     if (current.finished_at) return res.json({ session: sessionView(current, clock()) });
     const finished = new Date(clock()).toISOString();
     const result = await db.query(
@@ -180,6 +202,36 @@ function createCtRouter({ db, jwt, config, now = () => Date.now() }) {
       [claims.teamId, finished]
     );
     res.json({ session: sessionView(result.rows[0], clock()) });
+  }));
+
+  router.get('/admin/patch-code', asyncRoute(async (req, res) => {
+    const office = adminOffice(req, res);
+    if (!office) return undefined;
+    await seedOfficeCode(db, config, office);
+    const stored = await db.query(
+      `-- ct:code-get
+      SELECT patch_code, is_default, updated_at FROM ct_office_settings WHERE company_id=$1 AND event_id=$2 AND office=$3`,
+      [...scope(), office]
+    );
+    const row = stored.rows[0];
+    return res.json({ patchCode: row.patch_code, isDefault: row.is_default, updatedAt: row.updated_at });
+  }));
+
+  router.put('/admin/patch-code', asyncRoute(async (req, res) => {
+    const office = adminOffice(req, res);
+    if (!office) return undefined;
+    const error = validatePatchCode(req.body?.code, ['Y2KPATCH99', process.env.Y2K_PATCH_CODE]);
+    if (error) return res.status(400).json({ error });
+    await seedOfficeCode(db, config, office);
+    const patchCode = String(req.body.code).trim();
+    const result = await db.query(
+      `-- ct:code-put
+      UPDATE ct_office_settings SET patch_code = $4, is_default = FALSE, updated_at = $5
+      WHERE company_id=$1 AND event_id=$2 AND office=$3 RETURNING patch_code, is_default, updated_at`,
+      [...scope(), office, patchCode, new Date(now()).toISOString()]
+    );
+    const row = result.rows[0];
+    return res.json({ patchCode: row.patch_code, isDefault: row.is_default, updatedAt: row.updated_at });
   }));
 
   router.post('/admin/login', asyncRoute(async (req, res) => {
@@ -338,6 +390,7 @@ module.exports = {
   podium,
   secretsMatch,
   seedCtOffices,
+  validatePatchCode,
   sessionView,
   createCtRouter,
 };
