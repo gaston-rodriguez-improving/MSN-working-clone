@@ -2604,45 +2604,15 @@
     "semantic_hash": ""
   },
   "server/ctOctober.js": {
-    "mtime": 1792724716.1488523,
-    "seen": 1792724799.363199,
-    "ast_hash": "65726fe6e0935ab12934b38591ac42fc",
+    "mtime": 1792786852.9367962,
+    "seen": 1792786880.5849988,
+    "ast_hash": "5aeb7c7a76d028536b62c8dbe61871d5",
     "semantic_hash": ""
   },
   "server/ctOctober.test.js": {
-    "mtime": 1792724778.192082,
-    "seen": 1792724799.3632011,
-    "ast_hash": "0bb58dab7c0a1e88901f0efcd14145e6",
-    "semantic_hash": ""
-  },
-  "openspec/changes/add-ct-october-api/.openspec.yaml": {
-    "mtime": 1792724083.8601933,
-    "seen": 1792724799.364579,
-    "ast_hash": "db874330e3bdf09469eb2e2124cebd99",
-    "semantic_hash": ""
-  },
-  "openspec/changes/add-ct-october-api/design.md": {
-    "mtime": 1792724155.2238474,
-    "seen": 1792724799.3645802,
-    "ast_hash": "db50973f5103a796ae8297606fc3bb36",
-    "semantic_hash": ""
-  },
-  "openspec/changes/add-ct-october-api/proposal.md": {
-    "mtime": 1792724105.0153737,
-    "seen": 1792724799.3645802,
-    "ast_hash": "e444758fbbe65b3c474a3c3e4934d5d2",
-    "semantic_hash": ""
-  },
-  "openspec/changes/add-ct-october-api/specs/ct-october/spec.md": {
-    "mtime": 1792724121.6730673,
-    "seen": 1792724799.364581,
-    "ast_hash": "b8070f1bd1cf2132d8edd9ae15b4a37d",
-    "semantic_hash": ""
-  },
-  "openspec/changes/add-ct-october-api/tasks.md": {
-    "mtime": 1792724166.373655,
-    "seen": 1792724799.364581,
-    "ast_hash": "a750a11bc544698288fb90c0a3017f57",
+    "mtime": 1792786783.6726503,
+    "seen": 1792786880.585,
+    "ast_hash": "3c7b1d4b5358e0420886eb55ba8de90f",
     "semantic_hash": ""
   },
   "openspec/changes/archive/2026-10-21-serve-win98-under-path/.openspec.yaml": {
@@ -2709,6 +2679,72 @@
     "mtime": 1792630474.9845319,
     "seen": 1792724799.3645859,
     "ast_hash": "47936484cb40ee80b0b27c817e55f3da",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-office-patch-codes/.openspec.yaml": {
+    "mtime": 1792784982.0275142,
+    "seen": 1792786880.5865889,
+    "ast_hash": "4a33b58f0c8a77f25b6316ea945adf72",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-office-patch-codes/design.md": {
+    "mtime": 1792784982.5553188,
+    "seen": 1792786880.5865889,
+    "ast_hash": "1fa359d938c39f128577b4964f27d9af",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-office-patch-codes/proposal.md": {
+    "mtime": 1792784982.5438547,
+    "seen": 1792786880.58659,
+    "ast_hash": "f8da5b96e1038875febbc39c33b40d35",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-office-patch-codes/specs/ct-october/spec.md": {
+    "mtime": 1792784982.5641499,
+    "seen": 1792786880.586591,
+    "ast_hash": "1c1a07d1e31008776718ce383bacde8e",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-office-patch-codes/tasks.md": {
+    "mtime": 1792784982.5708518,
+    "seen": 1792786880.586591,
+    "ast_hash": "4bb36be4cbdce5b16f3b3bb3f67be8e9",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-add-ct-october-api/.openspec.yaml": {
+    "mtime": 1792724083.8601933,
+    "seen": 1792786880.5866911,
+    "ast_hash": "db874330e3bdf09469eb2e2124cebd99",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-add-ct-october-api/design.md": {
+    "mtime": 1792780810.9529371,
+    "seen": 1792786880.586692,
+    "ast_hash": "ec8b9a26ccf211b414a7ef1f5f451a5d",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-add-ct-october-api/proposal.md": {
+    "mtime": 1792724105.0153737,
+    "seen": 1792786880.586692,
+    "ast_hash": "e444758fbbe65b3c474a3c3e4934d5d2",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-add-ct-october-api/specs/ct-october/spec.md": {
+    "mtime": 1792780810.4074602,
+    "seen": 1792786880.586693,
+    "ast_hash": "fb1688d4472182f14c95fce151468d20",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-add-ct-october-api/tasks.md": {
+    "mtime": 1792724811.2297895,
+    "seen": 1792786880.586693,
+    "ast_hash": "039de31f4518d54d37b3cd9978da391f",
+    "semantic_hash": ""
+  },
+  "openspec/specs/ct-october/spec.md": {
+    "mtime": 1792784864.495241,
+    "seen": 1792786880.586794,
+    "ast_hash": "7d78937a53c32411a8b23b514637c233",
     "semantic_hash": ""
   }
 }
