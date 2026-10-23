@@ -113,6 +113,11 @@ The system SHALL report each team's status and elapsed time, SHALL rank finished
 - **WHEN** the admin reads the podium
 - **THEN** the team with the shorter elapsed time is first
 
+#### Scenario: Restart one team
+- **GIVEN** one finished team and one finished or running teammate in the same office
+- **WHEN** the admin restarts the first team
+- **THEN** only that team's session times are cleared
+
 #### Scenario: Reset while people are playing
 - **GIVEN** at least one team that has started and not finished
 - **WHEN** the admin resets the office

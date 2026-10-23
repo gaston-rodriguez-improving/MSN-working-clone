@@ -52,7 +52,7 @@ Keywords are stored as typed so the admin board can show them. Comparison trims 
 - `POST /ct/admin/login` with `{ office, password }` compares with `crypto.timingSafeEqual` to `CT_ADMIN_PASSWORD_ARGENTINA` or `CT_ADMIN_PASSWORD_CHILE`. A missing env password rejects every login.
 - `GET /ct/admin/teams`, `POST /ct/admin/teams`, `PATCH /ct/admin/teams/:id`, `DELETE /ct/admin/teams/:id`.
 - `GET /ct/admin/board` returns teams with `status` of `ready`, `running`, or `finished`, `elapsedMs`, `keyword`, `runningCount`, and `podium`.
-- `POST /ct/admin/reset` nulls `started_at` and `finished_at` for that office and returns how many were running.
+- `POST /ct/admin/teams/:id/reset` nulls `started_at` and `finished_at` for that one team. `POST /ct/admin/reset` does the same for every team in the office and returns how many were running.
 
 A session payload includes `startedAt`, `finishedAt`, `elapsedMs`, `status`, `overtime`, and `serverNow`. `overtime` is true only when the session is running and `elapsedMs` is greater than 60 minutes. The podium is finished teams, shortest elapsed time first, then name.
 

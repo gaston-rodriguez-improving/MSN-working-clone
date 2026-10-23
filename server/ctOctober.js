@@ -278,6 +278,35 @@ function createCtRouter({ db, jwt, config, now = () => Date.now() }) {
     return res.json(await boardFor(office));
   }));
 
+  router.post('/admin/teams/:id/reset', asyncRoute(async (req, res) => {
+    const office = adminOffice(req, res);
+    if (!office) return undefined;
+    const teamId = Number(req.params.id);
+    const running = await db.query(
+      `-- ct:team-running
+      SELECT COUNT(*)::int AS count FROM ct_sessions s JOIN ct_teams t ON t.id = s.team_id
+      WHERE s.team_id=$1 AND t.office=$2 AND t.company_id=$3 AND t.event_id=$4
+        AND s.started_at IS NOT NULL AND s.finished_at IS NULL`,
+      [teamId, office, ...scope()]
+    );
+    const cleared = await db.query(
+      `-- ct:team-reset
+      UPDATE ct_sessions s SET started_at = NULL, finished_at = NULL FROM ct_teams t
+      WHERE s.team_id = t.id AND s.team_id=$1 AND t.office=$2 AND t.company_id=$3 AND t.event_id=$4
+      RETURNING s.team_id`,
+      [teamId, office, ...scope()]
+    );
+    if (!cleared.rows[0]) {
+      const team = await db.query(
+        `-- ct:team-by-id
+        SELECT id FROM ct_teams WHERE id=$1 AND office=$2 AND company_id=$3 AND event_id=$4`,
+        [teamId, office, ...scope()]
+      );
+      if (!team.rows[0]) return res.status(404).json({ error: 'Team not found' });
+    }
+    return res.json({ runningCount: Number(running.rows[0].count) });
+  }));
+
   router.post('/admin/reset', asyncRoute(async (req, res) => {
     const office = adminOffice(req, res);
     if (!office) return undefined;

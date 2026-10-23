@@ -86,6 +86,19 @@ function memoryDb() {
         sessions.delete(removed.id);
         return { rows: [{ id: removed.id }] };
       }
+      if (op === 'team-running') {
+        const [id, office, companyId, eventId] = params;
+        const team = teams.find(item => item.id === id && item.office === office && item.company_id === companyId && item.event_id === eventId);
+        const session = team && sessions.get(team.id);
+        return { rows: [{ count: session?.started_at && !session?.finished_at ? 1 : 0 }] };
+      }
+      if (op === 'team-reset') {
+        const [id, office, companyId, eventId] = params;
+        const team = teams.find(item => item.id === id && item.office === office && item.company_id === companyId && item.event_id === eventId);
+        if (!team || !sessions.has(team.id)) return { rows: [] };
+        sessions.set(team.id, { started_at: null, finished_at: null });
+        return { rows: [{ team_id: team.id }] };
+      }
       if (op === 'running-count') {
         const [companyId, eventId, office] = params;
         const count = teams.filter(team => team.company_id === companyId && team.event_id === eventId && team.office === office && sessions.get(team.id)?.started_at && !sessions.get(team.id)?.finished_at).length;
@@ -229,6 +242,11 @@ test('a late finish is recorded and an Argentina board hides Chile', async () =>
     assert.equal(board.body.teams.length, 10);
     assert.equal(board.body.teams.some(team => team.keyword === 'river'), false);
     assert.deepEqual(board.body.podium.map(row => row.name), ['Team 2', 'Team 1']);
+    const restarted = await send(api.base, `/ct/admin/teams/${listed.body.teams[0].id}/reset`, { method: 'POST', token: admin.body.token });
+    assert.equal(restarted.status, 200);
+    const after = await send(api.base, '/ct/admin/board', { token: admin.body.token });
+    assert.equal(after.body.teams.find(team => team.id === listed.body.teams[0].id).status, 'ready');
+    assert.equal(after.body.teams.find(team => team.id === listed.body.teams[1].id).status, 'finished');
     const created = await send(api.base, '/ct/admin/teams', { method: 'POST', token: admin.body.token, body: { name: 'Team Extra', keyword: 'badge' } });
     assert.equal(created.status, 201);
     const edited = await send(api.base, `/ct/admin/teams/${created.body.team.id}`, { method: 'PATCH', token: admin.body.token, body: { keyword: 'badge-2' } });
