@@ -13,6 +13,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 const { accountNameFromClaims } = require('./accountName');
 const { parseYouTubeVideoId } = require('./music');
 const { ensureFotologUrl } = require('./fotologUrls');
+const { createCtRouter, seedCtOffices } = require('./ctOctober');
 
 const root = __dirname;
 const db = new Pool({
@@ -40,6 +41,7 @@ const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(x => x.trim()) : true }));
 app.use('/fotolog', express.json({ limit: '3mb' }));
 app.use(express.json({ limit: '1mb' }));
+app.use('/ct', createCtRouter({ db, jwt, config }));
 const publicUser = row => row && ({ id: row.id, email: row.email, username: row.username, accountName: row.account_name, status: row.status, bio: row.bio, avatar: row.avatar, banner: row.banner });
 const tokenFor = (user, authProvider = 'password') => jwt.sign({ sub: user.id, companyId: user.company_id, eventId: user.event_id, authProvider }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 async function getUser(id) { return (await db.query('SELECT * FROM users WHERE id = $1 AND company_id = $2 AND event_id = $3', [id, config.companyId, config.eventId])).rows[0]; }
@@ -84,6 +86,7 @@ const normalizeContactPreferences = preferences => {
 async function initializeDatabase() {
   for (const key of ['DATABASE_HOST', 'DATABASE_NAME', 'DATABASE_USER', 'DATABASE_PASSWORD']) if (!process.env[key]) throw new Error(`${key} is required`);
   await db.query(fs.readFileSync(path.join(root, 'schema.sql'), 'utf8'));
+  await seedCtOffices(db, config);
   await db.query("INSERT INTO admin_users (email, added_by) SELECT unnest($1::text[]), 'system' ON CONFLICT DO NOTHING", [[...adminEmails]]);
   const email = 'fotolog-leni@system.invalid';
   let leni = (await db.query('SELECT * FROM users WHERE email=$1 AND company_id=$2 AND event_id=$3', [email, config.companyId, config.eventId])).rows[0];

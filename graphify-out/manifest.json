@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "server/server.js": {
-    "mtime": 1792597651.5556643,
-    "seen": 1792608198.8803341,
-    "ast_hash": "908071bc5fcac0d8270e457f7f1fbbd0",
+    "mtime": 1792724734.2759607,
+    "seen": 1792724799.363344,
+    "ast_hash": "507d8b30b58d4ec66831edc54f0aaf62",
     "semantic_hash": ""
   },
   "src/components/AddFriendModal.jsx": {
@@ -546,44 +546,44 @@
     "semantic_hash": ""
   },
   ".agents/skills/SKILL.md": {
-    "mtime": 1792608017.2023056,
-    "seen": 1792608198.880363,
+    "mtime": 1792614092.3666036,
+    "seen": 1792724799.364437,
     "ast_hash": "ab15ab9aaeac1514fb6f4608f11a5268",
     "semantic_hash": ""
   },
   ".agents/skills/openspec-apply-change/SKILL.md": {
-    "mtime": 1792606659.6828437,
-    "seen": 1792608198.880363,
+    "mtime": 1792614092.3672805,
+    "seen": 1792724799.364438,
     "ast_hash": "2b12e67f11428dbf0f2182b743e95380",
     "semantic_hash": ""
   },
   ".agents/skills/openspec-archive-change/SKILL.md": {
-    "mtime": 1792606659.6850202,
-    "seen": 1792608198.880363,
+    "mtime": 1792614092.3676584,
+    "seen": 1792724799.364438,
     "ast_hash": "2e8b9e7e0466b417487565c25ac09233",
     "semantic_hash": ""
   },
   ".agents/skills/openspec-explore/SKILL.md": {
-    "mtime": 1792606659.68186,
-    "seen": 1792608198.880364,
+    "mtime": 1792614092.3680463,
+    "seen": 1792724799.364439,
     "ast_hash": "c9c0af9ca015b09a9aacc0e613220142",
     "semantic_hash": ""
   },
   ".agents/skills/openspec-propose/SKILL.md": {
-    "mtime": 1792606659.68575,
-    "seen": 1792608198.880364,
+    "mtime": 1792614092.3684728,
+    "seen": 1792724799.364439,
     "ast_hash": "bbeeebff03c5e9187187b29688371bd4",
     "semantic_hash": ""
   },
   ".agents/skills/openspec-sync-specs/SKILL.md": {
-    "mtime": 1792606659.6842706,
-    "seen": 1792608198.8803651,
+    "mtime": 1792614092.3688781,
+    "seen": 1792724799.36444,
     "ast_hash": "95ea3c8b0ac5e7d81a5297759d832859",
     "semantic_hash": ""
   },
   ".agents/skills/openspec-update-change/SKILL.md": {
-    "mtime": 1792606659.6836343,
-    "seen": 1792608198.8803651,
+    "mtime": 1792614092.3692508,
+    "seen": 1792724799.36444,
     "ast_hash": "7a4fbeca10021f32441941bac76d3e4f",
     "semantic_hash": ""
   },
@@ -624,8 +624,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1792611903.2483547,
-    "seen": 1792611973.0538938,
+    "mtime": 1792614092.3699138,
+    "seen": 1792724799.3645241,
     "ast_hash": "0507dfa0a8571fde55d2ace1917f0f93",
     "semantic_hash": ""
   },
@@ -636,8 +636,8 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1792611654.8155448,
-    "seen": 1792611973.05391,
+    "mtime": 1792614092.3701584,
+    "seen": 1792724799.364537,
     "ast_hash": "bd1a93a71ae9576589f4de843636b925",
     "semantic_hash": ""
   },
@@ -660,8 +660,8 @@
     "semantic_hash": ""
   },
   "openspec/config.yaml": {
-    "mtime": 1792608453.9313178,
-    "seen": 1792611973.0539598,
+    "mtime": 1792614092.3828564,
+    "seen": 1792724799.3645859,
     "ast_hash": "63f9953392d1c92264bd6add908cc018",
     "semantic_hash": ""
   },
@@ -2592,45 +2592,123 @@
     "semantic_hash": ""
   },
   "scripts/win98-routing/verify.sh": {
-    "mtime": 1792611757.4748945,
-    "seen": 1792611973.052175,
+    "mtime": 1792614092.3834739,
+    "seen": 1792724799.3631308,
     "ast_hash": "5376de08c1711a1cc3a1f301ca93c097",
     "semantic_hash": ""
   },
-  "openspec/changes/serve-win98-under-path/.openspec.yaml": {
-    "mtime": 1792609213.2199092,
-    "seen": 1792611973.053956,
+  "scripts/win98-routing/docker-compose.verify.yml": {
+    "mtime": 1792614092.383255,
+    "seen": 1792724799.3646002,
+    "ast_hash": "dedcfdd928ba7877acc91532b5967d7d",
+    "semantic_hash": ""
+  },
+  "server/ctOctober.js": {
+    "mtime": 1792724716.1488523,
+    "seen": 1792724799.363199,
+    "ast_hash": "65726fe6e0935ab12934b38591ac42fc",
+    "semantic_hash": ""
+  },
+  "server/ctOctober.test.js": {
+    "mtime": 1792724778.192082,
+    "seen": 1792724799.3632011,
+    "ast_hash": "0bb58dab7c0a1e88901f0efcd14145e6",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-october-api/.openspec.yaml": {
+    "mtime": 1792724083.8601933,
+    "seen": 1792724799.364579,
+    "ast_hash": "db874330e3bdf09469eb2e2124cebd99",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-october-api/design.md": {
+    "mtime": 1792724155.2238474,
+    "seen": 1792724799.3645802,
+    "ast_hash": "db50973f5103a796ae8297606fc3bb36",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-october-api/proposal.md": {
+    "mtime": 1792724105.0153737,
+    "seen": 1792724799.3645802,
+    "ast_hash": "e444758fbbe65b3c474a3c3e4934d5d2",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-october-api/specs/ct-october/spec.md": {
+    "mtime": 1792724121.6730673,
+    "seen": 1792724799.364581,
+    "ast_hash": "b8070f1bd1cf2132d8edd9ae15b4a37d",
+    "semantic_hash": ""
+  },
+  "openspec/changes/add-ct-october-api/tasks.md": {
+    "mtime": 1792724166.373655,
+    "seen": 1792724799.364581,
+    "ast_hash": "a750a11bc544698288fb90c0a3017f57",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-21-serve-win98-under-path/.openspec.yaml": {
+    "mtime": 1792614092.3815637,
+    "seen": 1792724799.364581,
     "ast_hash": "8dc49b4fe381379a3a28d72313f76df6",
     "semantic_hash": ""
   },
-  "openspec/changes/serve-win98-under-path/design.md": {
-    "mtime": 1792610118.9332721,
-    "seen": 1792611973.0539572,
+  "openspec/changes/archive/2026-10-21-serve-win98-under-path/design.md": {
+    "mtime": 1792614092.3818498,
+    "seen": 1792724799.3645818,
     "ast_hash": "d25ffffefa77c46ae7ba3db7afda8044",
     "semantic_hash": ""
   },
-  "openspec/changes/serve-win98-under-path/proposal.md": {
-    "mtime": 1792610118.6121614,
-    "seen": 1792611973.053958,
+  "openspec/changes/archive/2026-10-21-serve-win98-under-path/proposal.md": {
+    "mtime": 1792614092.38205,
+    "seen": 1792724799.3645818,
     "ast_hash": "1448cb1d17d86bb2a9d2879b6ab05b18",
     "semantic_hash": ""
   },
-  "openspec/changes/serve-win98-under-path/specs/win98-hosting/spec.md": {
-    "mtime": 1792610118.7953029,
-    "seen": 1792611973.053959,
+  "openspec/changes/archive/2026-10-21-serve-win98-under-path/specs/win98-hosting/spec.md": {
+    "mtime": 1792614092.3823512,
+    "seen": 1792724799.364583,
     "ast_hash": "3c7dca6d2d33ea4852e2c35b4f541b7a",
     "semantic_hash": ""
   },
-  "openspec/changes/serve-win98-under-path/tasks.md": {
-    "mtime": 1792611907.9891934,
-    "seen": 1792611973.053959,
-    "ast_hash": "9e28f6f1867997f1ec288f17e7061ff6",
+  "openspec/changes/archive/2026-10-21-serve-win98-under-path/tasks.md": {
+    "mtime": 1792630467.1809895,
+    "seen": 1792724799.364583,
+    "ast_hash": "1be81d68da8743e11ced26a289686811",
     "semantic_hash": ""
   },
-  "scripts/win98-routing/docker-compose.verify.yml": {
-    "mtime": 1792611510.8297105,
-    "seen": 1792611973.053975,
-    "ast_hash": "dedcfdd928ba7877acc91532b5967d7d",
+  "openspec/changes/restrict-msn-framing/.openspec.yaml": {
+    "mtime": 1792635434.4695508,
+    "seen": 1792724799.364584,
+    "ast_hash": "8dc49b4fe381379a3a28d72313f76df6",
+    "semantic_hash": ""
+  },
+  "openspec/changes/restrict-msn-framing/design.md": {
+    "mtime": 1792635485.9192128,
+    "seen": 1792724799.364584,
+    "ast_hash": "ca836fb25e4d2d1c8cfa9216ef36c9a1",
+    "semantic_hash": ""
+  },
+  "openspec/changes/restrict-msn-framing/proposal.md": {
+    "mtime": 1792635453.8412385,
+    "seen": 1792724799.364584,
+    "ast_hash": "28a173afd7947bec2c4be0dc89a32c00",
+    "semantic_hash": ""
+  },
+  "openspec/changes/restrict-msn-framing/specs/embedding-policy/spec.md": {
+    "mtime": 1792635453.9250667,
+    "seen": 1792724799.364585,
+    "ast_hash": "7abaf8c22075f1e1778c05dba32c9417",
+    "semantic_hash": ""
+  },
+  "openspec/changes/restrict-msn-framing/tasks.md": {
+    "mtime": 1792635486.236692,
+    "seen": 1792724799.364585,
+    "ast_hash": "831a4aa76482111a50a3cc5a1b53db27",
+    "semantic_hash": ""
+  },
+  "openspec/specs/win98-hosting/spec.md": {
+    "mtime": 1792630474.9845319,
+    "seen": 1792724799.3645859,
+    "ast_hash": "47936484cb40ee80b0b27c817e55f3da",
     "semantic_hash": ""
   }
 }
