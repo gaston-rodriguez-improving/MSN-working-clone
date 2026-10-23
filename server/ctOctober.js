@@ -38,7 +38,7 @@ async function seedOfficeCode(db, config, office) {
     `-- ct:code-seed
     INSERT INTO ct_office_settings (company_id, event_id, office, patch_code, is_default, updated_at)
     VALUES ($1,$2,$3,$4,TRUE,$5) ON CONFLICT (company_id, event_id, office) DO NOTHING`,
-    [config.companyId, config.eventId, office, process.env.Y2K_PATCH_CODE || 'Y2KPATCH99', new Date().toISOString()]
+    [config.companyId, config.eventId, office, String(process.env.Y2K_PATCH_CODE ?? '').trim() || 'Y2KPATCH99', new Date().toISOString()]
   );
 }
 
