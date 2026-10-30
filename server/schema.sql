@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE(email, company_id, event_id),
   UNIQUE(username, company_id, event_id)
 );
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS country TEXT,
+  ADD COLUMN IF NOT EXISTS city TEXT,
+  ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS user_contact_preferences (
   user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   preferences JSONB NOT NULL DEFAULT '{"favorites":[],"categories":[],"assignments":{},"layout":"status"}'::jsonb,

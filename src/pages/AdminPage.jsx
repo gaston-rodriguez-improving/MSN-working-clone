@@ -7,6 +7,9 @@ import { winks_icons } from '../imports/winks';
 import { formatName, stripHtml } from '../helpers/stripHtml';
 import { replaceEmoticons } from '../helpers/replaceEmoticons';
 import { adminCopy, adminLocale } from '../features/admin/copy';
+import L from 'leaflet';
+import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const AdminLanguage = createContext('en');
 const useAdminLocale = (override) => {
@@ -105,6 +108,69 @@ const OnlineChart = ({ days }) => {
       </div>
       <p className="mt-3 text-[12px] text-[#8296a5]">{empty ? t("Todavía no hay datos: el registro diario empieza desde que se activó este panel.") : t("El número del día es la cantidad de usuarios distintos que se conectaron.")}</p>
     </div>
+  );
+};
+
+const MapBounds = ({ locations }) => {
+  const map = useMap();
+  useEffect(() => {
+    const bounds = L.latLngBounds(locations.map(({ lat, lng }) => [lat, lng]));
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 5 });
+    else map.setView([20, 0], 2);
+  }, [locations, map]);
+  return null;
+};
+
+const countryFlag = (code) => /^[a-z]{2}$/i.test(code || '')
+  ? Array.from(code.toUpperCase(), (letter) => String.fromCodePoint(127397 + letter.charCodeAt(0))).join('')
+  : '🌍';
+
+const LocationsCard = ({ locations, locatedUsers }) => {
+  const { t, locale, formatNumber } = useAdminLocale();
+  const countries = locations ? [...locations.reduce((result, location) => {
+    const country = location.country;
+    if (!country) return result;
+    const current = result.get(country) || { code: country, count: 0 };
+    current.count += Number(location.count || 0);
+    result.set(country, current);
+    return result;
+  }, new Map()).values()].sort((a, b) => b.count - a.count) : [];
+  const total = locatedUsers ?? countries.reduce((count, country) => count + country.count, 0);
+  const displayNames = new Intl.DisplayNames([locale], { type: 'region' });
+  return (
+    <Card title={t("Usuarios por ubicación")} subtitle={locatedUsers !== null ? t("Usuarios ubicados: {count}", { count: formatNumber(locatedUsers) }) : undefined}>
+      {locations === null ? <Skeleton className="h-72 w-full" /> : (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,1fr)]">
+          <div className="h-72 overflow-hidden rounded-xl border border-[#dbe6ee]">
+            <MapContainer center={[20, 0]} zoom={2} scrollWheelZoom={false} className="h-full w-full">
+              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <MapBounds locations={locations} />
+              {locations.map((location, index) => (
+                <CircleMarker key={`${location.country}-${location.city}-${location.lat}-${location.lng}-${index}`} center={[location.lat, location.lng]} radius={6 + 4 * Math.sqrt(location.count)} fillColor="#1769aa" fillOpacity={0.5} color="#1769aa" weight={1}>
+                  <Tooltip>{`${location.city ? `${location.city}, ` : ''}${displayNames.of(location.country) || location.country} — ${formatNumber(location.count)}`}</Tooltip>
+                </CircleMarker>
+              ))}
+            </MapContainer>
+          </div>
+          {countries.length ? (
+            <ul className="max-h-72 divide-y divide-[#edf2f6] overflow-y-auto pr-1">
+              {countries.map(({ code, count }) => (
+                <li key={code} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-2 text-[14px]">
+                    <span aria-hidden="true" className="text-[18px]">{countryFlag(code)}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-[#31536b]">{displayNames.of(code) || code}</span>
+                    <span className="font-semibold text-[#17344d]">{formatNumber(count)}</span>
+                  </div>
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#edf2f6]">
+                    <div className="h-full rounded-full bg-[#1769aa]" style={{ width: `${total ? (count / total) * 100 : 0}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="self-center rounded-xl bg-[#f4f8fb] px-4 py-8 text-center text-[14px] leading-6 text-[#7b91a0]">{t("Todavía no hay datos de ubicación: se registra desde la próxima conexión de cada usuario")}</p>}
+        </div>
+      )}
+    </Card>
   );
 };
 
@@ -274,6 +340,8 @@ const AdminPage = () => {
                   {metrics ? <OnlineChart days={days} /> : <Skeleton className="h-48 w-full" />}
                 </Card>
               </div>
+
+              <LocationsCard locations={metrics ? metrics.locations || [] : null} locatedUsers={metrics?.locatedUsers ?? null} />
 
               <div>
                 <h2 className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-[0.14em] text-[#5f7d93]">{t("Estadísticas curiosas")}</h2>

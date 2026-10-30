@@ -14,6 +14,7 @@ const { accountNameFromClaims } = require('./accountName');
 const { parseYouTubeVideoId } = require('./music');
 const { ensureFotologUrl } = require('./fotologUrls');
 const { createCtRouter, seedCtOffices } = require('./ctOctober');
+const { clientIp, lookupLocation } = require('./geo');
 
 const root = __dirname;
 const db = new Pool({
@@ -111,7 +112,7 @@ async function listAdmins() {
 }
 app.get('/admin/metrics', auth, adminAuth, asyncRoute(async (_req, res) => {
   const scope = adminScope();
-  const [users, onlineByDay, totals, winks, leaders] = await Promise.all([
+  const [users, onlineByDay, totals, winks, locations, locatedUsers, leaders] = await Promise.all([
     db.query(`SELECT COUNT(*) FILTER (WHERE email !~* 'test')::int AS total, COUNT(*) FILTER (WHERE email ~* 'test')::int AS testers
       FROM users WHERE company_id = $1 AND event_id = $2`, scope),
     db.query(`WITH today AS (SELECT (now() AT TIME ZONE $3)::date AS day)
@@ -127,6 +128,11 @@ app.get('/admin/metrics', auth, adminAuth, asyncRoute(async (_req, res) => {
       (SELECT COUNT(*)::int FROM friend_requests fr JOIN users u ON u.id = fr.recipient_id WHERE u.company_id = $1 AND u.event_id = $2 AND fr.status = 'accepted') AS friends_added`, scope),
     db.query(`SELECT m.content AS name, COUNT(*)::int AS count FROM messages m JOIN conversations c ON c.id = m.conversation_id
       WHERE c.company_id = $1 AND c.event_id = $2 AND m.winks GROUP BY m.content ORDER BY count DESC, name LIMIT 5`, scope),
+    db.query(`SELECT country, city, lat, lng, COUNT(*)::int AS count FROM users
+      WHERE company_id = $1 AND event_id = $2 AND email !~* 'test' AND is_managed_profile = FALSE AND country IS NOT NULL
+      GROUP BY country, city, lat, lng ORDER BY count DESC`, scope),
+    db.query(`SELECT COUNT(*)::int AS total FROM users
+      WHERE company_id = $1 AND event_id = $2 AND email !~* 'test' AND is_managed_profile = FALSE AND country IS NOT NULL`, scope),
     nudgeLeaders(db, scope)
   ]);
   const t = totals.rows[0];
@@ -134,6 +140,8 @@ app.get('/admin/metrics', auth, adminAuth, asyncRoute(async (_req, res) => {
     generatedAt: new Date().toISOString(), timezone: config.timezone,
     users: { total: users.rows[0].total, testersExcluded: users.rows[0].testers },
     onlineByDay: onlineByDay.rows,
+    locations: locations.rows,
+    locatedUsers: locatedUsers.rows[0].total,
     fun: { songsAdded: t.songs_added, nudges: t.nudges, messages: t.messages, friendsAdded: t.friends_added, topWinks: winks.rows, ...leaders }
   });
 }));
@@ -584,6 +592,8 @@ wss.on('connection', (socket, req) => {
   });
   (async () => {
     const token = new URL(req.url, `http://${req.headers.host}`).searchParams.get('token'); const claims = jwt.verify(token, config.jwtSecret); if (claims.companyId !== config.companyId || claims.eventId !== config.eventId) throw new Error(); user = await getUser(Number(claims.sub)); if (!user || socket.readyState !== WebSocket.OPEN) throw new Error();
+    const location = lookupLocation(clientIp(req, Number(process.env.TRUST_PROXY_HOPS || 1)));
+    if (location) db.query('UPDATE users SET country = $1, city = $2, lat = $3, lng = $4, location_updated_at = now() WHERE id = $5', [location.country, location.city, location.lat, location.lng, user.id]).catch(() => {});
     const reconnecting = presenceGrace.reconnect(user.id);
     const alreadyConnected = Boolean(sockets.get(user.id)?.size);
     if (!sockets.has(user.id)) sockets.set(user.id, new Set()); sockets.get(user.id).add(socket);
